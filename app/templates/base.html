@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{% block title %}DAR | RES group — Ресторан в поезде{% endblock %}</title>
+    
+    <!-- PWA & Mobile Meta Tags -->
+    <meta name="theme-color" content="#1C3155">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DAR | RES">
+    <link rel="manifest" href="{{ url_for('static', path='manifest.json') }}">
+
+    <!-- Brand Favicon -->
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}">
+
+    <!-- Typography: Cormorant Garamond (Serif Headings) & Montserrat (Body & UI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    {% block content %}{% endblock %}
+
+    <script>
+      // Register PWA Service Worker if supported
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+        });
+      }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,18 @@
+.venv/
+*.db
+__pycache__/
+*.pyc
+scratch/
+.pytest_cache/
+
+# Құпия және жеке файлдар (GitHub-қа жүктелмейді)
+.env
+.env.*
+кіру.txt
+WhatsApp Image*
+*.docx
+*.pdf
+*.log
+.DS_Store
+.idea/
+.vscode/

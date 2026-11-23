@@ -1,0 +1,710 @@
+{% extends "base.html" %}
+
+{% block title %}DAR | RES group — {% if current_lang in ['kz', 'kk'] %}Ланчбокстар | Пойыздағы мейрамхана тағамдары{% elif current_lang == 'en' %}Lunchboxes | Onboard Train Restaurant Sets{% else %}Ланчбоксы | Ресторанное питание в поезде{% endif %}{% endblock %}
+
+{% block content %}
+<!-- Compact Sticky Header matching Passenger App -->
+<header class="passenger-header" id="passengerHeader">
+    <div class="container header-inner">
+        <!-- Hamburger Button for Mobile -->
+        <button type="button" class="btn-hamburger" id="hamburgerBtn" aria-label="Мәзір / Меню">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Logo Left -->
+        <a href="/" class="brand-logo-link" aria-label="DAR | RES group">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="brand-logo-img">
+        </a>
+
+        <!-- Desktop Navigation -->
+        <nav class="passenger-nav" id="passengerNav">
+            <a href="/#hero" class="p-nav-link" data-i18n="nav_home">Главная</a>
+            <a href="/#menu-anchor" class="p-nav-link" data-i18n="nav_menu">Меню</a>
+            <a href="/lunchboxes" class="p-nav-link active" data-i18n="nav_lunchboxes">Ланчбоксы</a>
+            <a href="/#about-service" class="p-nav-link" data-i18n="nav_about">О сервисе</a>
+            <a href="/#contacts" class="p-nav-link" data-i18n="nav_contacts">Контакты</a>
+        </nav>
+
+        <!-- Right: Train Context & Language Switcher -->
+        <div class="passenger-header-right">
+            <!-- Language Switcher: KZ | RU | EN -->
+            <div class="lang-selector-pill" role="group" aria-label="Выбор языка">
+                <button type="button" class="lang-toggle-btn {% if current_lang in ['kz', 'kk'] %}active{% endif %}" data-lang="kz">KZ</button>
+                <button type="button" class="lang-toggle-btn {% if current_lang == 'ru' or not current_lang %}active{% endif %}" data-lang="ru">RU</button>
+                <button type="button" class="lang-toggle-btn {% if current_lang == 'en' %}active{% endif %}" data-lang="en">EN</button>
+            </div>
+
+            <!-- Direct Back to Menu button in Header -->
+            <a href="/#menu-anchor" class="btn-header-back-menu" data-i18n="btn_back_menu">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>{% if current_lang in ['kz', 'kk'] %}Мәзірге оралу{% elif current_lang == 'en' %}Back to menu{% else %}Назад в меню{% endif %}</span>
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- Mobile Navigation Drawer -->
+<div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
+<aside class="mobile-nav-drawer" id="mobileNavDrawer">
+    <div class="mobile-nav-header">
+        <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES" style="height: 38px;">
+        <button type="button" class="btn-close-modal" id="mobileNavCloseBtn" style="font-size: 1.5rem; background:none; border:none; cursor:pointer;">&times;</button>
+    </div>
+    <div class="mobile-nav-links">
+        <a href="/#hero" class="mobile-nav-link" data-i18n="nav_home" onclick="closeMobileNav()">Главная</a>
+        <a href="/#menu-anchor" class="mobile-nav-link" data-i18n="nav_menu" onclick="closeMobileNav()">Меню</a>
+        <a href="/lunchboxes" class="mobile-nav-link active" data-i18n="nav_lunchboxes" onclick="closeMobileNav()">Ланчбоксы</a>
+        <a href="/#about-service" class="mobile-nav-link" data-i18n="nav_about" onclick="closeMobileNav()">О сервисе</a>
+        <a href="/#contacts" class="mobile-nav-link" data-i18n="nav_contacts" onclick="closeMobileNav()">Контакты</a>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 12px 0;">
+        <a href="/#menu-anchor" class="mobile-nav-link" data-i18n="btn_back_menu" onclick="closeMobileNav()" style="font-weight: 600; color: var(--color-primary);">
+            ← {% if current_lang in ['kz', 'kk'] %}Мәзірге оралу{% elif current_lang == 'en' %}Back to menu{% else %}Назад в меню{% endif %}
+        </a>
+    </div>
+</aside>
+
+<main class="passenger-main lunchboxes-page-main">
+    <!-- Top Action Breadcrumbs & Return to Menu Button -->
+    <section class="lunchboxes-top-bar">
+        <div class="container">
+            <div class="lunchboxes-top-row">
+                <a href="/#menu-anchor" class="btn-back-menu" id="topBackBtn" data-i18n="btn_back_menu">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    <span>{% if current_lang in ['kz', 'kk'] %}Мәзірге оралу{% elif current_lang == 'en' %}Back to menu{% else %}Назад в меню{% endif %}</span>
+                </a>
+
+                <div class="lunchbox-breadcrumbs">
+                    <a href="/" data-i18n="nav_home">{% if current_lang in ['kz', 'kk'] %}Басты бет{% elif current_lang == 'en' %}Home{% else %}Главная{% endif %}</a>
+                    <span class="bc-sep">/</span>
+                    <a href="/#menu-anchor" data-i18n="nav_menu">{% if current_lang in ['kz', 'kk'] %}Мәзір{% elif current_lang == 'en' %}Menu{% else %}Меню{% endif %}</a>
+                    <span class="bc-sep">/</span>
+                    <span class="bc-curr" data-i18n="nav_lunchboxes">{% if current_lang in ['kz', 'kk'] %}Ланчбокстар{% elif current_lang == 'en' %}Lunchboxes{% else %}Ланчбоксы{% endif %}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Page Header Banner Section -->
+    <section class="lunchbox-hero-section">
+        <div class="container">
+            <div class="lunchbox-header-box">
+                <span class="lunchbox-tag-badge" data-i18n="lb_tag_badge">DAR | RES ONBOARD SETS</span>
+                <h1 class="lunchbox-title" data-i18n="nav_lunchboxes">
+                    {% if current_lang in ['kz', 'kk'] %}Ланчбокстар{% elif current_lang == 'en' %}Lunchboxes{% else %}Ланчбоксы{% endif %}
+                </h1>
+                <p class="lunchbox-subtitle" data-i18n="lb_subtitle">
+                    {% if current_lang in ['kz', 'kk'] %}Пойызда жол жүруге арналған теңгерімді кешенді тағам жиынтықтары{% elif current_lang == 'en' %}Balanced onboard restaurant meal sets for train passengers{% else %}Сбалансированные готовые наборы ресторанного питания в дорогу{% endif %}
+                </p>
+                <div class="lunchbox-features-strip">
+                    <div class="lb-feat-item">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span data-i18n="lb_feat_1">{% if current_lang in ['kz', 'kk'] %}Теңгерімді кешенді рацион{% elif current_lang == 'en' %}Balanced onboard diet{% else %}Сбалансированный рацион{% endif %}</span>
+                    </div>
+                    <div class="lb-feat-item">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span data-i18n="lb_feat_2">{% if current_lang in ['kz', 'kk'] %}Ыстық тағам, салат, тоқаш және десерт{% elif current_lang == 'en' %}Hot dish, salad, pastry and dessert{% else %}Горячее блюдо, салат, выпечка и десерт{% endif %}</span>
+                    </div>
+                    <div class="lb-feat-item">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span data-i18n="lb_feat_3">{% if current_lang in ['kz', 'kk'] %}Салмақ пен сыбағаның нақты үлесі{% elif current_lang == 'en' %}Exact portion and weight breakdown{% else %}Точный контроль порций и веса{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Lunchboxes Cards Container (Text Only: Name and Contents, No Images) -->
+    <section class="lunchboxes-container-section">
+        <div class="container">
+            <div class="lb-preorder-notice" style="background:#fff8e1; border:1px solid #f0d58a; border-radius:12px; padding:16px 20px; margin-bottom:22px; color:#5c4300;">
+                <strong class="l3" data-kz="🎫 Ланчбокстар тек алдын ала тапсырыспен беріледі" data-en="🎫 Lunchboxes are available by pre-order only" data-ru="🎫 Ланчбоксы выдаются только по предзаказу"></strong>
+                <p class="l3" style="margin:6px 0 0; font-size:.95rem;"
+                   data-kz="Тапсырыс билет сатып алу кезінде беріледі және пойыз жүруіне кемінде {{ min_advance_hours }} сағат қалғанда ғана қабылданады. Пойыздың ішінде ланчбокс тапсырыс беру мүмкін емес."
+                   data-en="Order when you buy your ticket — at least {{ min_advance_hours }} hours before departure. Lunchboxes cannot be ordered once on board."
+                   data-ru="Заказ оформляется при покупке билета и принимается не позднее чем за {{ min_advance_hours }} ч до отправления поезда. В самом поезде заказать ланчбокс нельзя."></p>
+            </div>
+            <div class="lunchbox-cards-grid" id="lunchboxCardsGrid">
+                {% for lb in lunchboxes %}
+                <article class="lunchbox-card" data-lb-id="{{ lb.id }}">
+                    <div class="lb-card-header">
+                        <h2 class="lb-card-title" aria-label="{{ lb.title }}">{{ lb.number }}</h2>
+                    </div>
+
+                    <div class="lb-card-body">
+                        <ul class="lb-items-list" data-lb-items-list="{{ lb.id }}">
+                            {% for it in lb['items'] %}
+                            <li class="lb-item-row">
+                                <div class="lb-item-info">
+                                    <span class="lb-item-dot"></span>
+                                    <span class="lb-item-name">{{ it.name }}</span>
+                                </div>
+                                <span class="lb-item-weight">{{ it.weight_str }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="lb-card-footer">
+                        <!-- Add to Cart Action -->
+                        <div class="lb-card-action" style="margin-top: 14px;">
+                            {% if lb.price and lb.price > 0 %}
+                            <div class="lb-price" style="font-size: 1.35rem; font-weight: 700; margin-bottom: 8px; color: var(--color-primary, #1C3155);">{{ "{:,.0f}".format(lb.price).replace(",", " ") }} ₸</div>
+                            {% endif %}
+                            <button type="button" class="btn-primary lb-add-cart-btn" data-sku="{{ lb.sku }}" data-id="{{ lb.id }}" {% if not lb.is_available %}disabled style="opacity: 0.6; cursor: not-allowed; background: #6b7280; width: 100%; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; color: #fff;"{% else %}style="width: 100%; padding: 10px 16px; border-radius: 8px; font-weight: 600;" onclick="addLunchboxToCart('{{ lb.sku }}')"{% endif %}>
+                                <span class="lb-btn-text" data-i18n="{% if lb.is_available %}btn_add_to_cart{% else %}btn_unavailable{% endif %}">
+                                    {% if not lb.is_available %}
+                                        {% if current_lang in ['kz', 'kk'] %}Қолжетімсіз (бағасы нақтылануда){% elif current_lang == 'en' %}Unavailable (price pending){% else %}Недоступно (цена уточняется){% endif %}
+                                    {% else %}
+                                        {% if current_lang in ['kz', 'kk'] %}Алдын ала тапсырысқа қосу{% elif current_lang == 'en' %}Add to pre-order{% else %}Добавить в предзаказ{% endif %}
+                                    {% endif %}
+                                </span>
+                            </button>
+                            {% if not lb.is_available %}
+                            <p class="lb-unavailable-note" data-i18n="lb_unavailable_note" style="font-size: 0.8rem; color: #6b7280; margin-top: 6px; text-align: center;">
+                                {% if current_lang in ['kz', 'kk'] %}Бағасы әкімшілік тарапынан белгіленуде{% elif current_lang == 'en' %}Price pending administrator setup in /admin/menu{% else %}Цена устанавливается администратором в /admin/menu{% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+
+            <!-- Floating bar: ланчбокс алдын ала тапсырысының өз себеті (жалпы мәзір себетінен бөлек) -->
+            <button type="button" class="lb-floating-cart" id="lbFloatingCart" onclick="openLbCheckout()"
+               style="display:none; position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:60; background:#1C3155; color:#fff; padding:14px 22px; border:none; cursor:pointer; border-radius:999px; box-shadow:0 8px 24px rgba(0,0,0,.25); font-weight:600; align-items:center; gap:10px;">
+                <span>🍱</span><span id="lbCartText"></span><span>→</span>
+            </button>
+            <div id="lbToast" style="display:none; position:fixed; left:50%; transform:translateX(-50%); bottom:84px; z-index:61; background:#25302b; color:#fff; padding:10px 18px; border-radius:8px; font-size:.9rem;"></div>
+
+            <!-- Басты бетке оралу -->
+            <div class="lunchboxes-return-banner" style="justify-content:center;">
+                <a href="/" class="btn-primary lb-return-btn" data-i18n="nav_home">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    <span>{% if current_lang in ['kz', 'kk'] %}Басты бет{% elif current_lang == 'en' %}Home{% else %}Главная{% endif %}</span>
+                </a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Ланчбокс алдын ала тапсырысын рәсімдеу -->
+<div id="lbCheckout" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.55); overflow-y:auto; padding:20px;">
+    <div style="max-width:520px; margin:20px auto; background:#fff; border-radius:16px; padding:22px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 class="l3" style="margin:0; font-size:1.25rem;" data-kz="Алдын ала тапсырыс" data-en="Pre-order" data-ru="Предзаказ ланчбоксов"></h2>
+            <button type="button" onclick="closeLbCheckout()" style="background:none;border:none;font-size:1.8rem;cursor:pointer;" aria-label="Close">&times;</button>
+        </div>
+
+        <div id="lbCheckoutItems" style="margin-bottom:12px;"></div>
+        <div id="lbCheckoutTotals" style="border-top:1px solid #eee; padding-top:10px; margin-bottom:16px; font-size:.95rem;"></div>
+
+        <form id="lbOrderForm" novalidate>
+            <label class="l3" style="display:block; font-weight:600; margin:10px 0 4px;" data-kz="Пойыз *" data-en="Train *" data-ru="Поезд *"></label>
+            <select id="lbTrain" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                <option value="" class="l3" data-kz="— пойызды таңдаңыз —" data-en="— select train —" data-ru="— выберите поезд —"></option>
+                {% for t in trains %}
+                <option value="{{ t.number }}" {% if t.number == preselect_train %}selected{% endif %}>№ {{ t.number }}{% if t.route %} — {{ t.route }}{% endif %}</option>
+                {% endfor %}
+            </select>
+
+            <label class="l3" style="display:block; font-weight:600; margin:10px 0 4px;" data-kz="Пойыздың жүру күні мен уақыты *" data-en="Departure date and time *" data-ru="Дата и время отправления *"></label>
+            <input type="datetime-local" id="lbDeparture" min="{{ min_departure_local }}" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+            <small class="l3" style="color:#777;" data-kz="Билеттегі жүру уақыты (Қазақстан уақыты). Кемінде {{ min_advance_hours }} сағат қалуы керек." data-en="Departure time from your ticket (Kazakhstan time). At least {{ min_advance_hours }} hours ahead." data-ru="Время отправления из билета (по Казахстану). Не менее чем через {{ min_advance_hours }} ч."></small>
+
+            <label class="l3" style="display:block; font-weight:600; margin:10px 0 4px;" data-kz="Аты-жөні *" data-en="Full name *" data-ru="Имя *"></label>
+            <input type="text" id="lbName" maxlength="120" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+
+            <label class="l3" style="display:block; font-weight:600; margin:10px 0 4px;" data-kz="Телефон *" data-en="Phone *" data-ru="Телефон *"></label>
+            <input type="tel" id="lbPhone" placeholder="+7 7XX XXX XX XX" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <label class="l3" style="display:block; font-weight:600; margin:10px 0 4px;" data-kz="Вагон (билетте)" data-en="Carriage (on ticket)" data-ru="Вагон (из билета)"></label>
+                    <input type="text" id="lbWagon" maxlength="16" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                </div>
+                <div>
+                    <label class="l3" style="display:block; font-weight:600; margin:10px 0 4px;" data-kz="Орын (билетте)" data-en="Seat (on ticket)" data-ru="Место (из билета)"></label>
+                    <input type="text" id="lbSeat" maxlength="16" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                </div>
+            </div>
+
+            <label class="l3" style="display:block; font-weight:600; margin:10px 0 4px;" data-kz="Түсініктеме" data-en="Comment" data-ru="Комментарий"></label>
+            <textarea id="lbComment" rows="2" maxlength="400" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+
+            <div id="lbFormError" style="display:none; color:#c0392b; background:#fdecea; padding:10px; border-radius:8px; margin-top:12px; font-size:.9rem;"></div>
+
+            <button type="submit" id="lbSubmitBtn" class="btn-primary l3" style="width:100%; margin-top:16px; padding:14px; border-radius:10px; font-weight:700; font-size:1rem;"
+                    data-kz="Алдын ала тапсырыс беру" data-en="Place pre-order" data-ru="Оформить предзаказ"></button>
+        </form>
+    </div>
+</div>
+
+<!-- Unified DAR | RES group Footer with 3-language company description -->
+<footer class="passenger-footer">
+    <div class="container">
+        <div class="p-footer-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="p-footer-logo">
+            <p data-i18n="footer_tagline">{% if current_lang in ['kz', 'kk'] %}DAR | RES group — Пойыздардағы жолаушыларға арналған мейрамханалық тағамдар мен сусындар сервисі.{% elif current_lang == 'en' %}DAR | RES group — Restaurant food and beverage service for train passengers.{% else %}DAR | RES group — Сервис ресторанного питания и напитков для пассажиров поездов.{% endif %}</p>
+        </div>
+
+        <div class="p-footer-links">
+            <a href="/#hero" data-i18n="nav_home">Басты бет / Главная</a>
+            <a href="/#menu-anchor" data-i18n="nav_menu">Мәзір / Меню</a>
+            <a href="/lunchboxes" class="active" data-i18n="nav_lunchboxes">Ланчбокстар / Ланчбоксы / Lunchboxes</a>
+            <a href="/#about-service" data-i18n="nav_about">Сервис туралы / О сервисе</a>
+            <a href="/#contacts" data-i18n="nav_contacts">Байланыс / Контакты</a>
+        </div>
+
+        <div class="p-footer-bottom">
+            <p data-i18n="footer_rights">{% if current_lang in ['kz', 'kk'] %}© 2026 DAR | RES group. Барлық құқықтар қорғалған.{% elif current_lang == 'en' %}© 2026 DAR | RES group. All rights reserved.{% else %}© 2026 DAR | RES group. Все права защищены.{% endif %}</p>
+        </div>
+    </div>
+</footer>
+
+<script>
+// =============================================================================
+// LUNCHBOXES MULTILINGUAL CLIENT SCRIPT (KK/KZ, RU, EN)
+// =============================================================================
+const CURRENT_TRAIN = {{ train_no|tojson }};
+const CURRENT_WAGON = {{ wagon_no|tojson }};
+const CURRENT_SEAT = {{ seat_no|tojson }};
+
+// Preserve QR and train navigation context across tabs/pages (Requirement C.13)
+if (CURRENT_TRAIN) sessionStorage.setItem('dar_res_train', CURRENT_TRAIN);
+if (CURRENT_WAGON) sessionStorage.setItem('dar_res_wagon', CURRENT_WAGON);
+if (CURRENT_SEAT) sessionStorage.setItem('dar_res_seat', CURRENT_SEAT);
+
+const urlParams = new URLSearchParams(window.location.search);
+const currentQ = urlParams.get('q');
+if (currentQ) sessionStorage.setItem('dar_res_q', currentQ);
+
+function getNavigationContextQuery() {
+    const t = sessionStorage.getItem('dar_res_train') || CURRENT_TRAIN;
+    const w = sessionStorage.getItem('dar_res_wagon') || CURRENT_WAGON;
+    const s = sessionStorage.getItem('dar_res_seat') || CURRENT_SEAT;
+    const q = sessionStorage.getItem('dar_res_q') || currentQ;
+    const p = new URLSearchParams();
+    if (t) p.set('train', t);
+    if (w) p.set('wagon', w);
+    if (s) p.set('seat', s);
+    if (q) p.set('q', q);
+    const qs = p.toString();
+    return qs ? `?${qs}` : '';
+}
+
+// Preserve context on all return/back links
+document.querySelectorAll('a[href^="/#"], a[href="/"], a[href="/menu"]').forEach(link => {
+    link.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        const hashIdx = href.indexOf('#');
+        const basePath = hashIdx !== -1 ? href.slice(0, hashIdx) : href;
+        const hash = hashIdx !== -1 ? href.slice(hashIdx) : '';
+        const targetPath = (basePath === '/' || basePath === '') ? '/menu' : basePath;
+        e.preventDefault();
+        window.location.href = `${targetPath}${getNavigationContextQuery()}${hash}`;
+    });
+});
+
+// Әдепкі тіл — орыс (ru). Пайдаланушы тілді өзі ауыстырса ғана сақталады (v2: ескі сақталған kz/en тілі ескерілмейді).
+let activeLang = localStorage.getItem('dar_res_lang_v2') || '{{ current_lang }}' || 'ru';
+if (activeLang === 'kk') activeLang = 'kz';
+
+// 1. Centralized Multilingual Translations
+const TRANSLATIONS = {
+    kz: {
+        nav_home: "Басты бет",
+        nav_menu: "Мәзір",
+        nav_lunchboxes: "Ланчбокстар",
+        nav_drinks: "Сусындар",
+        nav_about: "Сервис туралы",
+        nav_contacts: "Байланыс",
+        btn_back_menu: "Мәзірге оралу",
+        btn_add_to_cart: "Алдын ала тапсырысқа қосу",
+        btn_unavailable: "Қолжетімсіз (бағасы нақтылануда)",
+        lb_unavailable_note: "Бағасы әкімшілік тарапынан белгіленуде",
+        weight_unit: "г",
+        lb_tag_badge: "DAR | RES ONBOARD SETS",
+        lb_subtitle: "Пойызда жол жүруге арналған теңгерімді кешенді тағам жиынтықтары",
+        lb_feat_1: "Теңгерімді кешенді рацион",
+        lb_feat_2: "Ыстық тағам, салат, тоқаш және десерт",
+        lb_feat_3: "Салмақ пен сыбағаның нақты үлесі",
+        lb_portion_label: "Салмақ үлесі:",
+        lb_comp_heading: "Құрамы:",
+        lb_total_label: "Жалпы салмағы:",
+        footer_tagline: "DAR | RES group — Пойыздардағы жолаушыларға арналған мейрамханалық тағамдар мен сусындар сервисі.",
+        footer_rights: "© 2026 DAR | RES group. Барлық құқықтар қорғалған."
+    },
+    ru: {
+        nav_home: "Главная",
+        nav_menu: "Меню",
+        nav_lunchboxes: "Ланчбоксы",
+        nav_drinks: "Напитки",
+        nav_about: "О сервисе",
+        nav_contacts: "Контакты",
+        btn_back_menu: "Назад в меню",
+        btn_add_to_cart: "Добавить в предзаказ",
+        btn_unavailable: "Недоступно (цена уточняется)",
+        lb_unavailable_note: "Цена устанавливается администратором в /admin/menu",
+        weight_unit: "гр",
+        lb_tag_badge: "DAR | RES ONBOARD SETS",
+        lb_subtitle: "Сбалансированные готовые наборы ресторанного питания в дорогу",
+        lb_feat_1: "Сбалансированный рацион",
+        lb_feat_2: "Горячее блюдо, салат, выпечка и десерт",
+        lb_feat_3: "Точный контроль порций и веса",
+        lb_portion_label: "Выход:",
+        lb_comp_heading: "Состав набора:",
+        lb_total_label: "Общий вес:",
+        footer_tagline: "DAR | RES group — Сервис ресторанного питания и напитков для пассажиров поездов.",
+        footer_rights: "© 2026 DAR | RES group. Все права защищены."
+    },
+    en: {
+        nav_home: "Home",
+        nav_menu: "Menu",
+        nav_lunchboxes: "Lunchboxes",
+        nav_drinks: "Drinks",
+        nav_about: "About Service",
+        nav_contacts: "Contacts",
+        btn_back_menu: "Back to menu",
+        btn_add_to_cart: "Add to pre-order",
+        btn_unavailable: "Unavailable (price pending)",
+        lb_unavailable_note: "Price pending administrator setup in /admin/menu",
+        weight_unit: "g",
+        lb_tag_badge: "DAR | RES ONBOARD SETS",
+        lb_subtitle: "Balanced onboard restaurant meal sets for train passengers",
+        lb_feat_1: "Balanced onboard diet",
+        lb_feat_2: "Hot dish, salad, pastry and dessert",
+        lb_feat_3: "Exact portion and weight breakdown",
+        lb_portion_label: "Portion breakdown:",
+        lb_comp_heading: "Set contents:",
+        lb_total_label: "Total weight:",
+        footer_tagline: "DAR | RES group — Restaurant food and beverage service for train passengers.",
+        footer_rights: "© 2026 DAR | RES group. All rights reserved."
+    }
+};
+// Support kk alias
+TRANSLATIONS.kk = TRANSLATIONS.kz;
+
+// 2. Structured Lunchboxes Data loaded from server (DB single source of truth)
+const LUNCHBOXES_RAW = {{ raw_lunchboxes | tojson | safe }};
+
+// Ланчбокс алдын ала тапсырысының себеті — жалпы мәзір себетінен (dar_res_cart) бөлек.
+// menu_item_id — дерекқордағы нақты ID (merge_lunchboxes_with_db арқылы келеді). Бағаны сервер қайта тексереді.
+const LB_CART_KEY = 'dar_res_lb_cart';
+const MIN_ADVANCE_HOURS = {{ min_advance_hours|tojson }};
+
+function getLunchboxCart() {
+    try { return JSON.parse(localStorage.getItem(LB_CART_KEY) || '[]'); } catch (e) { return []; }
+}
+function saveLunchboxCart(cart) { localStorage.setItem(LB_CART_KEY, JSON.stringify(cart)); }
+
+// Ескі нұсқада ланчбоксты жалпы себетке қосқан болса — оларды алып тастаймыз (енді бөлек тапсырылады)
+(function purgeLunchboxesFromMainCart() {
+    try {
+        const ids = LUNCHBOXES_RAW.map(l => l.menu_item_id).filter(Boolean);
+        const main = JSON.parse(localStorage.getItem('dar_res_cart') || '[]');
+        const cleaned = main.filter(c => !ids.includes(c.menu_item_id));
+        if (cleaned.length !== main.length) localStorage.setItem('dar_res_cart', JSON.stringify(cleaned));
+    } catch (e) {}
+})();
+
+function lbText(kz, en, ru) {
+    return (activeLang === 'kz' || activeLang === 'kk') ? kz : (activeLang === 'en' ? en : ru);
+}
+
+function fmtMoney(v) {
+    return Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸';
+}
+
+function escHtml(v) {
+    return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function applyL3() {
+    const key = (activeLang === 'kz' || activeLang === 'kk') ? 'kz' : (activeLang === 'en' ? 'en' : 'ru');
+    document.querySelectorAll('.l3').forEach(el => {
+        const t = el.dataset[key];
+        if (t !== undefined) el.textContent = t;
+    });
+}
+
+function showLunchboxToast(msg) {
+    const el = document.getElementById('lbToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(showLunchboxToast._t);
+    showLunchboxToast._t = setTimeout(() => { el.style.display = 'none'; }, 2200);
+}
+
+function updateLunchboxCartBar() {
+    const bar = document.getElementById('lbFloatingCart');
+    const text = document.getElementById('lbCartText');
+    if (!bar || !text) return;
+    const cart = getLunchboxCart();
+    const qty = cart.reduce((a, c) => a + (c.quantity || 0), 0);
+    const sum = cart.reduce((a, c) => a + (c.unit_price || 0) * (c.quantity || 0), 0);
+    if (qty === 0) { bar.style.display = 'none'; return; }
+    text.textContent = lbText('Алдын ала тапсырыс', 'Pre-order', 'Предзаказ') + ': ' + qty + ' · ' + fmtMoney(sum) + ' — ' +
+                       lbText('рәсімдеу', 'checkout', 'оформить');
+    bar.style.display = 'flex';
+}
+
+function addLunchboxToCart(sku) {
+    const lb = LUNCHBOXES_RAW.find(l => l.sku === sku);
+    if (!lb || !lb.is_available || !lb.menu_item_id) {
+        showLunchboxToast(lbText('Ланчбокс әзірше қолжетімсіз.', 'Lunchbox is currently unavailable.', 'Ланчбокс пока недоступен.'));
+        return;
+    }
+    const cart = getLunchboxCart();
+    const existing = cart.find(c => c.menu_item_id === lb.menu_item_id);
+    if (existing) {
+        existing.quantity += 1;
+        existing.unit_price = lb.price;
+    } else {
+        cart.push({
+            menu_item_id: lb.menu_item_id,
+            quantity: 1,
+            unit_price: lb.price,
+            name_ru: lb.title.ru,
+            name_kz: lb.title.kk || lb.title.ru,
+            name_en: lb.title.en || lb.title.ru
+        });
+    }
+    saveLunchboxCart(cart);
+    updateLunchboxCartBar();
+    showLunchboxToast(lbText('Алдын ала тапсырысқа қосылды!', 'Added to pre-order!', 'Добавлено в предзаказ!'));
+}
+
+function changeLbQty(menuItemId, delta) {
+    let cart = getLunchboxCart();
+    const row = cart.find(c => c.menu_item_id === menuItemId);
+    if (!row) return;
+    row.quantity += delta;
+    if (row.quantity <= 0) cart = cart.filter(c => c.menu_item_id !== menuItemId);
+    saveLunchboxCart(cart);
+    updateLunchboxCartBar();
+    if (cart.length === 0) { closeLbCheckout(); return; }
+    renderLbCheckout();
+}
+
+function renderLbCheckout() {
+    const cart = getLunchboxCart();
+    const nameKey = (activeLang === 'kz' || activeLang === 'kk') ? 'name_kz' : (activeLang === 'en' ? 'name_en' : 'name_ru');
+    document.getElementById('lbCheckoutItems').innerHTML = cart.map(c => `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f1f1f1;">
+            <div style="flex:1;"><strong>${escHtml(c[nameKey] || c.name_ru)}</strong><br><small style="color:#777;">${fmtMoney(c.unit_price)}</small></div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" onclick="changeLbQty(${c.menu_item_id}, -1)" style="width:30px;height:30px;border-radius:50%;border:1px solid #ccc;background:#fff;cursor:pointer;">−</button>
+                <span>${c.quantity}</span>
+                <button type="button" onclick="changeLbQty(${c.menu_item_id}, 1)" style="width:30px;height:30px;border-radius:50%;border:1px solid #ccc;background:#fff;cursor:pointer;">+</button>
+            </div>
+            <div style="min-width:80px; text-align:right; font-weight:600;">${fmtMoney(c.unit_price * c.quantity)}</div>
+        </div>`).join('');
+    const sub = cart.reduce((a, c) => a + c.unit_price * c.quantity, 0);
+    const fee = Math.round(sub * 0.10);
+    document.getElementById('lbCheckoutTotals').innerHTML = `
+        <div style="display:flex; justify-content:space-between;"><span>${lbText('Сома', 'Subtotal', 'Подытог')}</span><span>${fmtMoney(sub)}</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>${lbText('Қызмет көрсету (10%)', 'Service (10%)', 'Обслуживание (10%)')}</span><span>${fmtMoney(fee)}</span></div>
+        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:1.1rem; margin-top:4px;"><span>${lbText('Барлығы', 'Total', 'Итого')}</span><span>${fmtMoney(sub + fee)}</span></div>`;
+}
+
+function openLbCheckout() {
+    if (getLunchboxCart().length === 0) return;
+    renderLbCheckout();
+    document.getElementById('lbFormError').style.display = 'none';
+    document.getElementById('lbCheckout').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    try {
+        const saved = JSON.parse(localStorage.getItem('dar_res_lb_contact') || '{}');
+        if (saved.name && !document.getElementById('lbName').value) document.getElementById('lbName').value = saved.name;
+        if (saved.phone && !document.getElementById('lbPhone').value) document.getElementById('lbPhone').value = saved.phone;
+    } catch (e) {}
+}
+
+function closeLbCheckout() {
+    document.getElementById('lbCheckout').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function showLbError(msg) {
+    const box = document.getElementById('lbFormError');
+    box.textContent = msg;
+    box.style.display = 'block';
+}
+
+let lbIdempotencyKey = null;
+
+document.getElementById('lbOrderForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const cart = getLunchboxCart();
+    if (cart.length === 0) return;
+
+    const train = document.getElementById('lbTrain').value;
+    const departure = document.getElementById('lbDeparture').value;
+    const name = document.getElementById('lbName').value.trim();
+    const phone = document.getElementById('lbPhone').value.trim();
+
+    if (!train) return showLbError(lbText('Пойызды таңдаңыз.', 'Select a train.', 'Выберите поезд.'));
+    if (!departure) return showLbError(lbText('Жүру күні мен уақытын көрсетіңіз.', 'Enter the departure date and time.', 'Укажите дату и время отправления.'));
+    // Клиент жағынан алдын ала тексеру (түпкілікті тексеруді сервер жасайды)
+    const depMs = new Date(departure + '+05:00').getTime();
+    if (isNaN(depMs) || depMs - Date.now() < MIN_ADVANCE_HOURS * 3600 * 1000) {
+        return showLbError(lbText(
+            'Ланчбокс тапсырысын жүруіне кемінде ' + MIN_ADVANCE_HOURS + ' сағат қалғанда ғана беруге болады.',
+            'Lunchboxes can only be pre-ordered at least ' + MIN_ADVANCE_HOURS + ' hours before departure.',
+            'Ланчбоксы можно заказать не позднее чем за ' + MIN_ADVANCE_HOURS + ' ч до отправления.'));
+    }
+    if (!name) return showLbError(lbText('Атыңызды жазыңыз.', 'Enter your name.', 'Укажите имя.'));
+    if (phone.replace(/\D/g, '').length < 10) return showLbError(lbText('Телефон нөмірін дұрыс жазыңыз.', 'Enter a valid phone number.', 'Укажите корректный телефон.'));
+
+    if (!lbIdempotencyKey) {
+        lbIdempotencyKey = 'lb-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    }
+    const btn = document.getElementById('lbSubmitBtn');
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                passenger_name: name,
+                phone: phone,
+                train_no: train,
+                wagon_no: document.getElementById('lbWagon').value.trim(),
+                seat_no: document.getElementById('lbSeat').value.trim(),
+                departure_at: departure,
+                comment: document.getElementById('lbComment').value.trim(),
+                idempotency_key: lbIdempotencyKey,
+                items: cart.map(c => ({ menu_item_id: c.menu_item_id, quantity: c.quantity }))
+            })
+        });
+        let data = {};
+        try { data = await res.json(); } catch (err) {}
+        if (!res.ok) {
+            let msg = typeof data.detail === 'string' ? data.detail : (Array.isArray(data.detail) ? data.detail.map(d => d.msg).join('; ') : 'Error');
+            btn.disabled = false;
+            return showLbError(msg);
+        }
+        localStorage.setItem('dar_res_lb_contact', JSON.stringify({ name: name, phone: phone }));
+        localStorage.removeItem(LB_CART_KEY);
+        lbIdempotencyKey = null;
+        window.location.href = data.redirect_url + (data.whatsapp_url ? '?wa=1' : '');
+    } catch (err) {
+        btn.disabled = false;
+        showLbError(lbText('Байланыс қатесі. Қайталап көріңіз.', 'Connection error. Please try again.', 'Ошибка связи. Попробуйте ещё раз.'));
+    }
+});
+
+// 3. Reactive Language Applicator
+function applyLanguage(lang) {
+    if (lang === 'kk') lang = 'kz';
+    if (!TRANSLATIONS[lang]) lang = 'ru';
+    activeLang = lang;
+
+    // Persist
+    localStorage.setItem('dar_res_passenger_lang', lang);
+    localStorage.setItem('dar_res_lang', lang);
+    localStorage.setItem('dar_res_lang_v2', lang);
+
+    // Update active class on pills
+    document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang || (btn.dataset.lang === 'kz' && lang === 'kk'));
+    });
+
+    applyL3();
+    updateLunchboxCartBar();
+    if (document.getElementById('lbCheckout').style.display === 'block') renderLbCheckout();
+
+    const dict = TRANSLATIONS[lang] || TRANSLATIONS.ru;
+    const normLang = (lang === 'kz' || lang === 'kk') ? 'kk' : lang;
+    const unit = dict.weight_unit || 'гр';
+
+    // Update all data-i18n elements
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (dict[key]) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.placeholder = dict[key];
+            } else if (el.querySelector('span')) {
+                const s = el.querySelector('span');
+                s.textContent = dict[key];
+            } else {
+                el.textContent = dict[key];
+            }
+        }
+    });
+
+    // Update Lunchbox Cards dynamically
+    LUNCHBOXES_RAW.forEach(lb => {
+        const listEl = document.querySelector(`[data-lb-items-list="${lb.id}"]`);
+        if (listEl) {
+            listEl.innerHTML = lb.items.map(it => {
+                const itName = it.name[normLang] || it.name.ru;
+                return `
+                    <li class="lb-item-row">
+                        <div class="lb-item-info">
+                            <span class="lb-item-dot"></span>
+                            <span class="lb-item-name">${itName}</span>
+                        </div>
+                        <span class="lb-item-weight">${it.weight} ${unit}</span>
+                    </li>
+                `;
+            }).join('');
+        }
+    });
+}
+
+// Mobile drawer controls
+const mobileNavDrawer = document.getElementById('mobileNavDrawer');
+const mobileNavBackdrop = document.getElementById('mobileNavBackdrop');
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const mobileNavCloseBtn = document.getElementById('mobileNavCloseBtn');
+
+function openMobileNav() {
+    if (mobileNavDrawer) mobileNavDrawer.classList.add('open');
+    if (mobileNavBackdrop) mobileNavBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMobileNav() {
+    if (mobileNavDrawer) mobileNavDrawer.classList.remove('open');
+    if (mobileNavBackdrop) mobileNavBackdrop.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+if (hamburgerBtn) hamburgerBtn.addEventListener('click', openMobileNav);
+if (mobileNavCloseBtn) mobileNavCloseBtn.addEventListener('click', closeMobileNav);
+if (mobileNavBackdrop) mobileNavBackdrop.addEventListener('click', closeMobileNav);
+
+// Language switch buttons
+document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        applyLanguage(btn.dataset.lang);
+    });
+});
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    applyLanguage(activeLang);
+    updateLunchboxCartBar();
+});
+</script>
+{% endblock %}

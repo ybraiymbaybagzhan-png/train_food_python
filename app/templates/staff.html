@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Жолсерік / Служба доставки — DAR | RES group{% endblock %}
+
+{% block content %}
+<header class="staff-header">
+    <div class="container header-inner">
+        <div class="staff-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="staff-logo">
+            <div class="staff-title-box">
+                <h1>Доставка в вагоны</h1>
+                <span class="staff-role-badge">Служба доставки / Проводник</span>
+            </div>
+        </div>
+        <div class="staff-user-bar">
+            <span>{{ user.full_name or user.username }}</span>
+            <a href="/logout" class="btn-logout">Выход</a>
+        </div>
+    </div>
+</header>
+
+<main class="staff-main-container">
+    <div class="container">
+        <!-- Delivery Tabs -->
+        <div class="staff-tabs-row">
+            <button type="button" class="staff-tab-btn active" data-tab="ready">
+                <span>Дайын / Готовы к доставке</span>
+                <span class="staff-badge" id="readyCountBadge">{{ ready_orders|length }}</span>
+            </button>
+            <button type="button" class="staff-tab-btn" data-tab="delivering">
+                <span>Жолда / В пути к месту</span>
+                <span class="staff-badge" id="deliveringCountBadge">{{ delivering_orders|length }}</span>
+            </button>
+            <button type="button" class="staff-tab-btn" data-tab="completed">
+                <span>Жеткізілген / Завершенные</span>
+            </button>
+        </div>
+
+        <!-- 1. Ready Orders Section -->
+        <section class="staff-tab-content active" id="tabContent_ready">
+            <div class="staff-cards-grid" id="readyGrid">
+                {% if ready_orders|length == 0 %}
+                <div class="staff-empty-state">
+                    <p>Қазірше дайын тапсырыс жоқ / Пока нет заказов для доставки</p>
+                </div>
+                {% else %}
+                {% for o in ready_orders %}
+                <div class="staff-order-card" id="staffCard_{{ o.id }}">
+                    <div class="s-card-top">
+                        <span class="s-order-no">#{{ o.order_number }}</span>
+                        <span class="s-status-tag ready">ГОТОВ НА КУХНЕ</span>
+                    </div>
+
+                    <!-- Destination Banner -->
+                    <div class="s-destination-banner">
+                        <div class="s-dest-box">
+                            <span class="s-dest-sub">Поезд</span>
+                            <strong>№ {{ o.train_no }}</strong>
+                        </div>
+                        <div class="s-dest-box highlight">
+                            <span class="s-dest-sub">ВАГОН</span>
+                            <strong class="wagon-big">{{ o.wagon_no }}</strong>
+                        </div>
+                        <div class="s-dest-box highlight">
+                            <span class="s-dest-sub">МЕСТО</span>
+                            <strong class="seat-big">{{ o.seat_no }}{% if o.compartment_no %} (Купе {{ o.compartment_no }}){% endif %}</strong>
+                        </div>
+                    </div>
+
+                    <div class="s-passenger-row">
+                        <span>Жолаушы / Пассажир:</span>
+                        <strong>{{ o.passenger_name or 'Пассажир' }}</strong>
+                        {% if o.phone %}
+                        <a href="tel:{{ o.phone }}" class="s-phone-link">📞 {{ o.phone }}</a>
+                        {% endif %}
+                    </div>
+
+                    <div class="s-items-preview">
+                        {% for oi in o.items %}
+                        <div class="s-item-line">
+                            <strong>{{ oi.quantity }}×</strong>
+                            <span>{{ oi.item_name_snapshot }} {% if oi.variant_snapshot %}({{ oi.variant_snapshot }}){% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if o.comment %}
+                    <div class="s-comment-alert">
+                        ⚠️ {{ o.comment }}
+                    </div>
+                    {% endif %}
+
+                    <div class="s-card-actions">
+                        <button type="button" class="btn-take-delivery" onclick="takeOrder({{ o.id }})">
+                            🚶 ТАПСЫРЫСТЫ АЛУ / ВЗЯТЬ ЗАКАЗ
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- 2. Delivering Orders Section -->
+        <section class="staff-tab-content" id="tabContent_delivering">
+            <div class="staff-cards-grid" id="deliveringGrid">
+                {% if delivering_orders|length == 0 %}
+                <div class="staff-empty-state">
+                    <p>Қазірше жеткізілудегі тапсырыс жоқ / Нет заказов в пути</p>
+                </div>
+                {% else %}
+                {% for o in delivering_orders %}
+                <div class="staff-order-card delivering-card" id="staffCard_{{ o.id }}">
+                    <div class="s-card-top">
+                        <span class="s-order-no">#{{ o.order_number }}</span>
+                        <span class="s-status-tag delivering">В ПУТИ В ВАГОН</span>
+                    </div>
+
+                    <div class="s-destination-banner">
+                        <div class="s-dest-box">
+                            <span class="s-dest-sub">Поезд</span>
+                            <strong>№ {{ o.train_no }}</strong>
+                        </div>
+                        <div class="s-dest-box highlight">
+                            <span class="s-dest-sub">ВАГОН</span>
+                            <strong class="wagon-big">{{ o.wagon_no }}</strong>
+                        </div>
+                        <div class="s-dest-box highlight">
+                            <span class="s-dest-sub">МЕСТО</span>
+                            <strong class="seat-big">{{ o.seat_no }}{% if o.compartment_no %} (Купе {{ o.compartment_no }}){% endif %}</strong>
+                        </div>
+                    </div>
+
+                    <div class="s-passenger-row">
+                        <span>Жолаушы / Пассажир:</span>
+                        <strong>{{ o.passenger_name or 'Пассажир' }}</strong>
+                        {% if o.phone %}
+                        <a href="tel:{{ o.phone }}" class="s-phone-link">📞 {{ o.phone }}</a>
+                        {% endif %}
+                    </div>
+
+                    <div class="s-items-preview">
+                        {% for oi in o.items %}
+                        <div class="s-item-line">
+                            <strong>{{ oi.quantity }}×</strong>
+                            <span>{{ oi.item_name_snapshot }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="s-card-actions">
+                        <button type="button" class="btn-finish-delivery" onclick="markDelivered({{ o.id }})">
+                            ✓ ЖЕТКІЗІЛДІ / ДОСТАВЛЕНО
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- 3. Completed Today Section -->
+        <section class="staff-tab-content" id="tabContent_completed">
+            <div class="staff-cards-grid">
+                {% for o in delivered_orders %}
+                <div class="staff-order-card completed-card">
+                    <div class="s-card-top">
+                        <span class="s-order-no">#{{ o.order_number }}</span>
+                        <span class="s-status-tag delivered">ЖЕТКІЗІЛДІ ✓</span>
+                    </div>
+                    <p style="margin: 8px 0; font-size: 0.95rem;">
+                        Поезд № {{ o.train_no }}, Вагон <strong>{{ o.wagon_no }}</strong>, Место <strong>{{ o.seat_no }}</strong>
+                    </p>
+                    <small style="color: var(--color-warm-gray);">Сумма: {{ "%.0f"|format(o.total) }} ₸</small>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tabs Switching
+document.querySelectorAll('.staff-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.staff-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.staff-tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tabContent_${btn.dataset.tab}`).classList.add('active');
+    });
+});
+
+async function takeOrder(orderId) {
+    try {
+        const res = await fetch(`/api/staff/orders/${orderId}/take`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast('✓ Тапсырыс қабылданды! Вагонға жеткізіңіз.');
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка при взятии заказа.');
+        }
+    } catch (err) {
+        alert('Ошибка связи с сервером.');
+    }
+}
+
+async function markDelivered(orderId) {
+    if (!confirm('Тапсырыс жолаушыға табысталды ма? / Заказ доставлен?')) return;
+    try {
+        const res = await fetch(`/api/staff/orders/${orderId}/delivered`, { method: 'PATCH' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast('🎉 Тапсырыс сәтті жеткізілді!');
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка при завершении заказа.');
+        }
+    } catch (err) {
+        alert('Ошибка связи с сервером.');
+    }
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+}
+
+// WebSocket listener
+function connectStaffWS() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/staff`);
+    ws.onmessage = (e) => {
+        try {
+            const msg = JSON.parse(e.data);
+            if (msg.event === 'order_status_update' || msg.event === 'new_order') {
+                // Auto reload if an order became ready or was taken
+                setTimeout(() => window.location.reload(), 1000);
+            }
+        } catch (err) {}
+    };
+    ws.onclose = () => setTimeout(connectStaffWS, 4000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    connectStaffWS();
+});
+</script>
+{% endblock %}

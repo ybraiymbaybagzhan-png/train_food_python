@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Есептер & Аналитика / Отчеты и аналитика — DAR | RES group Admin{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+    <div class="container header-inner">
+        <div class="admin-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="admin-logo">
+            <div class="admin-title-box">
+                <h1>Есептер & Аналитика / Отчеты</h1>
+                <span class="admin-badge">Operations Intelligence</span>
+            </div>
+        </div>
+        <nav class="admin-nav">
+            <a href="/admin" class="admin-nav-link">Басты / Главная</a>
+            <a href="/admin/orders" class="admin-nav-link">Тапсырыстар / Заказы</a>
+            <a href="/admin/menu" class="admin-nav-link">Мәзір / Меню</a>
+            <a href="/admin/trains" class="admin-nav-link">Пойыздар / Поезда</a>
+            <a href="/admin/qr" class="admin-nav-link">QR-кодтар</a>
+            <a href="/admin/users" class="admin-nav-link">Қызметкерлер / Пользователи</a>
+            <a href="/admin/reports" class="admin-nav-link active">Есептер / Отчеты</a>
+            <a href="/logout" class="btn-logout" style="margin-left: 14px;">Выход</a>
+        </nav>
+    </div>
+</header>
+
+<main class="admin-main">
+    <div class="container">
+        <!-- Summary KPI row -->
+        <div class="admin-kpi-grid" style="margin-bottom: 28px;">
+            <div class="kpi-card highlight-kpi">
+                <span class="kpi-label">Жалпы түсім / Общая выручка</span>
+                <strong class="kpi-value">{{ "%.0f"|format(total_sales) }} ₸</strong>
+                <small style="color: rgba(255,255,255,0.7); display:block; margin-top:4px;">включая 10% обслуживание</small>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Барлық тапсырыстар / Всего заказов</span>
+                <strong class="kpi-value">{{ total_orders }}</strong>
+                <small style="color: var(--color-warm-gray);">Успешно: {{ delivered_count }} | Отмена: {{ cancelled_count }}</small>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Орташа дайындау уақыты / Ср. готовка</span>
+                <strong class="kpi-value" style="color: var(--color-primary-light);">{{ avg_prep_time }} мин</strong>
+                <small style="color: var(--color-warm-gray);">от принятия до готовности</small>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Орташа жеткізу уақыты / Ср. доставка</span>
+                <strong class="kpi-value" style="color: var(--color-status-delivered);">{{ avg_delivery_time }} мин</strong>
+                <small style="color: var(--color-warm-gray);">от кухни до места пассажира</small>
+            </div>
+        </div>
+
+        <!-- 2-Column Split: Popular Dishes & Order Status Breakdown -->
+        <div class="reports-split-grid">
+            <!-- Left: Popular Dishes Ranking -->
+            <div class="report-box">
+                <h3 class="report-title">🏆 Ең көп сұранысқа ие тағамдар / Популярные блюда</h3>
+                <div class="table-responsive">
+                    <table class="admin-data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Блюдо</th>
+                                <th>Кол-во порций</th>
+                                <th>Сумма продаж</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if popular_items|length == 0 %}
+                            <tr><td colspan="4" style="text-align: center; color: var(--color-warm-gray);">Тапсырыстар дерегі әлі жиналмаған</td></tr>
+                            {% else %}
+                            {% for item in popular_items %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><strong>{{ item.name }}</strong></td>
+                                <td><span class="badge-qty">{{ item.count }} шт.</span></td>
+                                <td><strong>{{ "%.0f"|format(item.revenue) }} ₸</strong></td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right: Performance & Efficiency Metrics -->
+            <div class="report-box">
+                <h3 class="report-title">📊 Жұмыс көрсеткіштері / Операционные показатели</h3>
+                
+                <div class="perf-metric-row">
+                    <div class="perf-info">
+                        <span>Жеткізу тиімділігі (Delivery Rate)</span>
+                        <strong>{{ "%.1f"|format(delivery_success_rate) }}%</strong>
+                    </div>
+                    <div class="perf-bar-track">
+                        <div class="perf-bar-fill" style="width: {{ delivery_success_rate }}%;"></div>
+                    </div>
+                </div>
+
+                <div class="perf-metric-row">
+                    <div class="perf-info">
+                        <span>Орташа чек (Average Order Value)</span>
+                        <strong>{{ "%.0f"|format(avg_order_value) }} ₸</strong>
+                    </div>
+                </div>
+
+                <div class="perf-metric-row">
+                    <div class="perf-info">
+                        <span>Тапсырыс қабылдау режимі</span>
+                        <strong class="mode-status-pill {% if ordering_mode == 'OPEN' %}mode-open{% else %}mode-closed{% endif %}">
+                            {{ ordering_mode }}
+                        </strong>
+                    </div>
+                </div>
+
+                <div class="status-summary-pills">
+                    <div class="s-pill new">Жаңа: {{ status_counts.NEW or 0 }}</div>
+                    <div class="s-pill prep">Дайындалуда: {{ status_counts.PREPARING or 0 }}</div>
+                    <div class="s-pill ready">Дайын: {{ status_counts.READY or 0 }}</div>
+                    <div class="s-pill deliv">Жолда: {{ status_counts.OUT_FOR_DELIVERY or 0 }}</div>
+                    <div class="s-pill done">Жеткізілді: {{ status_counts.DELIVERED or 0 }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}

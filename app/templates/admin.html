@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Әкімшілік панелі / Панель администратора — DAR | RES group{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+    <div class="container header-inner">
+        <div class="admin-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="admin-logo">
+            <div class="admin-title-box">
+                <h1>Басқару панелі / Панель администратора</h1>
+                <span class="admin-badge">Admin Operations Suite</span>
+            </div>
+        </div>
+        <nav class="admin-nav">
+            <a href="/admin" class="admin-nav-link active">Басты / Главная</a>
+            <a href="/admin/orders" class="admin-nav-link">Тапсырыстар / Заказы</a>
+            <a href="/admin/menu" class="admin-nav-link">Мәзір / Меню</a>
+            <a href="/admin/trains" class="admin-nav-link">Пойыздар / Поезда</a>
+            <a href="/admin/qr" class="admin-nav-link">QR-кодтар</a>
+            <a href="/admin/users" class="admin-nav-link">Қызметкерлер / Пользователи</a>
+            <a href="/admin/reports" class="admin-nav-link">Есептер / Отчеты</a>
+            <a href="/kitchen" class="admin-nav-link" target="_blank">Кухня ↗</a>
+            <a href="/staff" class="admin-nav-link" target="_blank">Доставка ↗</a>
+            <a href="/logout" class="btn-logout" style="margin-left: 14px;">Выход</a>
+        </nav>
+    </div>
+</header>
+
+<main class="admin-main">
+    <div class="container">
+        <!-- Service Mode Controller Banner -->
+        <div class="admin-mode-banner">
+            <div class="mode-info">
+                <strong>Қызмет көрсету режимі / Режим обслуживания:</strong>
+                <span class="mode-status-pill {% if ordering_mode == 'OPEN' %}mode-open{% else %}mode-closed{% endif %}" id="modeStatusPill">
+                    {% if ordering_mode == 'OPEN' %}ТАПСЫРЫС АШЫҚ / ORDERING OPEN{% else %}ТАПСЫРЫС ЖАБЫҚ / ORDERING CLOSED{% endif %}
+                </span>
+            </div>
+            <div class="mode-actions">
+                <button type="button" class="btn-mode-toggle" id="toggleModeBtn" onclick="toggleOrderingMode('{{ ordering_mode }}')">
+                    {% if ordering_mode == 'OPEN' %}ЖАБУ / ПРИОСТАНОВИТЬ ЗАКАЗЫ{% else %}АШУ / ОТКРЫТЬ ПРИЕМ ЗАКАЗОВ{% endif %}
+                </button>
+            </div>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="admin-kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Жалпы тапсырыстар / Заказов</span>
+                <strong class="kpi-value">{{ total_orders }}</strong>
+            </div>
+            <div class="kpi-card highlight-kpi">
+                <span class="kpi-label">Жалпы түсім / Продажи (с 10%)</span>
+                <strong class="kpi-value">{{ "%.0f"|format(total_sales) }} ₸</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Белсенді / В работе</span>
+                <strong class="kpi-value active-count">{{ active_count }}</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Жеткізілді / Доставлено</span>
+                <strong class="kpi-value success-count">{{ delivered_count }}</strong>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Тоқтатылды / Отменено</span>
+                <strong class="kpi-value cancel-count">{{ cancelled_count }}</strong>
+            </div>
+        </div>
+
+        <!-- Operations Speed & Efficiency Bar -->
+        <div class="reports-split-grid" style="margin-bottom: 24px;">
+            <div class="report-box" style="padding: 16px 20px;">
+                <span style="font-size: 0.85rem; color: var(--color-warm-gray); text-transform: uppercase;">Орташа дайындау уақыты / Ср. приготовление</span>
+                <div style="font-size: 1.6rem; font-weight: bold; color: var(--color-primary); margin-top: 4px;">
+                    🍳 {{ avg_prep_time }} минут
+                </div>
+                <small style="color: #888;">асхана қабылдаған сәттен дайын болғанға дейін</small>
+            </div>
+            <div class="report-box" style="padding: 16px 20px;">
+                <span style="font-size: 0.85rem; color: var(--color-warm-gray); text-transform: uppercase;">Орташа жеткізу уақыты / Ср. доставка в вагон</span>
+                <div style="font-size: 1.6rem; font-weight: bold; color: var(--color-status-delivered); margin-top: 4px;">
+                    🚆 {{ avg_delivery_time }} минут
+                </div>
+                <small style="color: #888;">жолсерік алып шыққаннан орнына табыстағанға дейін</small>
+            </div>
+        </div>
+
+        <!-- Recent Orders Table -->
+        <div class="admin-table-section">
+            <div class="table-header-row">
+                <h2>Соңғы тапсырыстар / Последние заказы</h2>
+                <div class="admin-actions-group">
+                    <input type="search" id="adminOrderSearch" class="form-control" placeholder="Іздеу (№, жолаушы, вагон)..." style="max-width: 280px;">
+                    <a href="/admin/orders" class="btn-secondary" style="padding: 8px 16px;">
+                        Барлық тапсырыстарды ашу →
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="admin-data-table" id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>№ Заказа</th>
+                            <th>Время</th>
+                            <th>Поезд / Вагон / Место</th>
+                            <th>Пассажир</th>
+                            <th>Сумма (с 10%)</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in recent_orders %}
+                        <tr class="order-table-row" data-search="{{ o.order_number|lower }} {{ o.passenger_name|lower }} {{ o.train_no }} {{ o.wagon_no }} {{ o.seat_no }}">
+                            <td><strong>#{{ o.order_number }}</strong></td>
+                            <td>{{ o.created_at.strftime('%H:%M') }}</td>
+                            <td>Поезд № {{ o.train_no }}, Ваг. {{ o.wagon_no }}, Орын {{ o.seat_no }}</td>
+                            <td>{{ o.passenger_name or '—' }}</td>
+                            <td><strong>{{ "%.0f"|format(o.total) }} ₸</strong></td>
+                            <td>
+                                <span class="order-status-badge status-{{ o.status.value.lower() }}">{{ o.status.value }}</span>
+                            </td>
+                            <td>
+                                <a href="/order/{{ o.public_uuid }}" target="_blank" class="btn-link-action">Трекинг</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function toggleOrderingMode(current) {
+    const next = current === 'OPEN' ? 'CLOSED' : 'OPEN';
+    const confirmMsg = next === 'CLOSED' ? 
+        'Прием заказов будет временно приостановлен для всех пассажиров. Продолжить?' : 
+        'Прием заказов будет открыт. Продолжить?';
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const res = await fetch('/api/admin/settings/ordering-mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: next })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.reload();
+        } else {
+            alert('Ошибка при изменении режима обслуживания.');
+        }
+    } catch (err) {
+        alert('Ошибка связи с сервером.');
+    }
+}
+
+document.getElementById('adminOrderSearch').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    document.querySelectorAll('.order-table-row').forEach(row => {
+        const match = row.dataset.search.includes(q);
+        row.style.display = match ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

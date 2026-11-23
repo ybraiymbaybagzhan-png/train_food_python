@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Вход для сотрудников — DAR | RES group{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <a href="/">
+                <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="auth-logo">
+            </a>
+            <h1 class="auth-title">Служебный вход</h1>
+            <p class="auth-subtitle">Асхана, жолсеріктер және әкімшілік панеліне кіру</p>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+            <input type="hidden" name="next" value="{{ next_url | e }}">
+            
+            <div class="form-group">
+                <label for="username" class="form-label">Логин / Имя пользователя</label>
+                <input type="text" id="username" name="username" class="form-control" required placeholder="admin / kitchen / staff" autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Пароль</label>
+                <input type="password" id="password" name="password" class="form-control" required placeholder="Введите пароль">
+            </div>
+
+            <div id="loginError" class="auth-error-msg" style="display: none;"></div>
+
+            <button type="submit" class="btn-primary auth-submit-btn" id="loginBtn">
+                КІРУ / ВОЙТИ
+            </button>
+        </form>
+
+        <div class="auth-demo-hint">
+            <p><strong>Қызметтік рөлдер / Служебные роли:</strong></p>
+            <ul>
+                <li>Кухня: <code>kitchen</code></li>
+                <li>Проводник (Доставка): <code>staff</code></li>
+                <li>Администратор: <code>admin</code></li>
+            </ul>
+        </div>
+
+        <div class="auth-back-link">
+            <a href="/">← Вернуться в меню пассажира</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const errDiv = document.getElementById('loginError');
+    errDiv.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Тексеру / Вход...';
+
+    const formData = new FormData(this);
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            errDiv.textContent = data.detail || 'Неверный логин или пароль';
+            errDiv.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'КІРУ / ВОЙТИ';
+        }
+    } catch (err) {
+        errDiv.textContent = 'Ошибка сети. Попробуйте еще раз.';
+        errDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'КІРУ / ВОЙТИ';
+    }
+});
+</script>
+{% endblock %}

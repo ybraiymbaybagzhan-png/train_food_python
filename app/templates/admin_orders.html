@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Тапсырыстар тарихы / История заказов — DAR | RES group Admin{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+    <div class="container header-inner">
+        <div class="admin-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="admin-logo">
+            <div class="admin-title-box">
+                <h1>Тапсырыстар / Заказы поезда</h1>
+                <span class="admin-badge">Order Archive & Live Control</span>
+            </div>
+        </div>
+        <nav class="admin-nav">
+            <a href="/admin" class="admin-nav-link">Басты / Главная</a>
+            <a href="/admin/orders" class="admin-nav-link active">Тапсырыстар / Заказы</a>
+            <a href="/admin/menu" class="admin-nav-link">Мәзір / Меню</a>
+            <a href="/admin/trains" class="admin-nav-link">Пойыздар / Поезда</a>
+            <a href="/admin/qr" class="admin-nav-link">QR-кодтар</a>
+            <a href="/admin/users" class="admin-nav-link">Қызметкерлер / Пользователи</a>
+            <a href="/admin/reports" class="admin-nav-link">Есептер / Отчеты</a>
+            <a href="/logout" class="btn-logout" style="margin-left: 14px;">Выход</a>
+        </nav>
+    </div>
+</header>
+
+<main class="admin-main">
+    <div class="container">
+        <!-- Filter Controls Toolbar -->
+        <div class="orders-filter-card">
+            <div class="filter-row-grid">
+                <div class="filter-col">
+                    <label class="filter-label">Поиск (№ заказа, имя, телефон, вагон, место)</label>
+                    <input type="search" id="orderSearchInput" class="form-control" placeholder="Мысалы: 1042, Арман, 7 вагон...">
+                </div>
+                <div class="filter-col">
+                    <label class="filter-label">Статус</label>
+                    <select id="statusFilter" class="form-control">
+                        <option value="ALL">Барлығы / Все статусы</option>
+                        <option value="NEW">NEW / Жаңа</option>
+                        <option value="ACCEPTED">ACCEPTED / Қабылданды</option>
+                        <option value="PREPARING">PREPARING / Дайындалуда</option>
+                        <option value="READY">READY / Дайын</option>
+                        <option value="OUT_FOR_DELIVERY">OUT FOR DELIVERY / Жолда</option>
+                        <option value="DELIVERED">DELIVERED / Жеткізілді</option>
+                        <option value="CANCELLED">CANCELLED / Тоқтатылды</option>
+                    </select>
+                </div>
+                <div class="filter-col">
+                    <label class="filter-label">Поезд</label>
+                    <select id="trainFilter" class="form-control">
+                        <option value="ALL">Барлық пойыздар / Все поезда</option>
+                        {% for t in trains %}
+                        <option value="{{ t.train_number }}">№ {{ t.train_number }} ({{ t.route_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Count & Export Indicator -->
+        <div class="table-header-row" style="margin: 20px 0 12px 0;">
+            <h3>Тапсырыстар тізімі (<span id="filteredCount">{{ orders|length }}</span>)</h3>
+            <div class="admin-quick-links">
+                <span class="currency-tag">Валюта: KZT (₸) • Қызмет: 10%</span>
+            </div>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="table-responsive">
+            <table class="admin-data-table" id="allOrdersTable">
+                <thead>
+                    <tr>
+                        <th>№ Заказа</th>
+                        <th>Дата и время</th>
+                        <th>Поезд / Вагон / Место</th>
+                        <th>Пассажир</th>
+                        <th>Блюда и состав</th>
+                        <th>Сумма (с 10%)</th>
+                        <th>Время приг. / дост.</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                    {% for o in orders %}
+                    <tr class="order-data-row" 
+                        data-search="{{ o.order_number|lower }} {{ o.passenger_name|lower }} {{ o.phone }} {{ o.train_no }} {{ o.wagon_no }} {{ o.seat_no }}"
+                        data-status="{{ o.status.value }}"
+                        data-train="{{ o.train_no }}">
+                        <td>
+                            <strong>#{{ o.order_number }}</strong>
+                        </td>
+                        <td>
+                            <span>{{ o.created_at.strftime('%d.%m.%Y') }}</span><br>
+                            <small style="color: var(--color-warm-gray);">{{ o.created_at.strftime('%H:%M') }}</small>
+                        </td>
+                        <td>
+                            <strong>Поезд № {{ o.train_no }}</strong><br>
+                            <span>Ваг. {{ o.wagon_no }}, Орын {{ o.seat_no }}</span>
+                            {% if o.compartment_no %}
+                            <small style="color: var(--color-warm-gray); display:block;">Купе {{ o.compartment_no }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ o.passenger_name or '—' }}</strong><br>
+                            <small>{{ o.phone or '—' }}</small>
+                        </td>
+                        <td>
+                            <div class="order-items-compact">
+                                {% for oi in o.items %}
+                                <div>{{ oi.quantity }}× {{ oi.item_name_snapshot }} {% if oi.variant_snapshot %}<small>({{ oi.variant_snapshot }})</small>{% endif %}</div>
+                                {% endfor %}
+                            </div>
+                            {% if o.comment %}
+                            <div class="item-comment-tag">💬 {{ o.comment }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ "%.0f"|format(o.total) }} ₸</strong><br>
+                            <small style="color: var(--color-warm-gray);">подытог: {{ "%.0f"|format(o.subtotal) }} + 10% ({{ "%.0f"|format(o.service_charge) }})</small>
+                        </td>
+                        <td>
+                            {% if o.accepted_at and o.ready_at %}
+                                <span title="Время готовки">🍳 {{ ((o.ready_at - o.accepted_at).total_seconds() / 60)|round(1) }} мин</span><br>
+                            {% elif o.status.value in ['NEW', 'ACCEPTED', 'PREPARING'] %}
+                                <small style="color: var(--color-warm-gray);">в процессе</small><br>
+                            {% else %}
+                                <small>—</small><br>
+                            {% endif %}
+
+                            {% if o.out_for_delivery_at and o.delivered_at %}
+                                <span title="Время доставки" style="color: var(--color-status-delivered);">🚆 {{ ((o.delivered_at - o.out_for_delivery_at).total_seconds() / 60)|round(1) }} мин</span>
+                            {% elif o.status.value == 'OUT_FOR_DELIVERY' %}
+                                <small style="color: var(--color-status-delivering);">в пути</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="order-status-badge status-{{ o.status.value.lower() }}">{{ o.status.value }}</span>
+                            {% if o.cancel_reason %}
+                            <div style="font-size: 0.75rem; color: var(--color-status-cancelled); margin-top: 4px;">{{ o.cancel_reason }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/order/{{ o.public_uuid }}" target="_blank" class="btn-link-action" style="display:inline-block; margin-bottom: 4px;">
+                                Трекинг
+                            </a>
+                            {% if o.status.value not in ['DELIVERED', 'CANCELLED'] %}
+                            <button type="button" class="btn-cancel-sm" onclick="cancelOrder({{ o.id }})">Отмена</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterOrders() {
+    const q = document.getElementById('orderSearchInput').value.toLowerCase().trim();
+    const st = document.getElementById('statusFilter').value;
+    const tr = document.getElementById('trainFilter').value;
+
+    let count = 0;
+    document.querySelectorAll('.order-data-row').forEach(row => {
+        const matchSearch = !q || row.dataset.search.includes(q);
+        const matchStatus = (st === 'ALL') || (row.dataset.status === st);
+        const matchTrain = (tr === 'ALL') || (row.dataset.train === tr);
+
+        if (matchSearch && matchStatus && matchTrain) {
+            row.style.display = '';
+            count++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    document.getElementById('filteredCount').textContent = count;
+}
+
+document.getElementById('orderSearchInput').addEventListener('input', filterOrders);
+document.getElementById('statusFilter').addEventListener('change', filterOrders);
+document.getElementById('trainFilter').addEventListener('change', filterOrders);
+
+async function cancelOrder(orderId) {
+    const reason = prompt('Укажите причину отмены заказа:');
+    if (reason === null) return;
+
+    try {
+        const res = await fetch(`/api/kitchen/orders/${orderId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_status: 'CANCELLED', cancel_reason: reason.trim() || 'Отменено администратором' })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка отмены заказа.');
+        }
+    } catch (e) {
+        alert('Ошибка связи с сервером.');
+    }
+}
+</script>
+{% endblock %}

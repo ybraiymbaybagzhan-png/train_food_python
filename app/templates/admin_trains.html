@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Пойыздар & Вагондар / Поезда и вагоны — DAR | RES group Admin{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+    <div class="container header-inner">
+        <div class="admin-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="admin-logo">
+            <div class="admin-title-box">
+                <h1>Пойыздар & Вагондар / Поезда и вагоны</h1>
+                <span class="admin-badge">Train & Carriage Fleet</span>
+            </div>
+        </div>
+        <nav class="admin-nav">
+            <a href="/admin" class="admin-nav-link">Басты / Главная</a>
+            <a href="/admin/orders" class="admin-nav-link">Тапсырыстар / Заказы</a>
+            <a href="/admin/menu" class="admin-nav-link">Мәзір / Меню</a>
+            <a href="/admin/trains" class="admin-nav-link active">Пойыздар / Поезда</a>
+            <a href="/admin/qr" class="admin-nav-link">QR-кодтар</a>
+            <a href="/admin/users" class="admin-nav-link">Қызметкерлер / Пользователи</a>
+            <a href="/admin/reports" class="admin-nav-link">Есептер / Отчеты</a>
+            <a href="/logout" class="btn-logout" style="margin-left: 14px;">Выход</a>
+        </nav>
+    </div>
+</header>
+
+<main class="admin-main">
+    <div class="container">
+        <div class="table-header-row" style="margin-bottom: 24px;">
+            <div>
+                <h2>Тіркелген пойыздар мен вагондар ({{ trains|length }} поезда)</h2>
+                <p style="color: var(--color-warm-gray); font-size: 0.9rem;">
+                    Әр вагон үшін жеткізуді (delivery) қосу немесе сөндіру мүмкіндігі бар.
+                </p>
+            </div>
+            <div class="admin-actions-group">
+                <button type="button" class="btn-secondary" onclick="openAddCarriageModal()">
+                    + Вагон қосу / Добавить вагон
+                </button>
+                <button type="button" class="btn-primary" onclick="openAddTrainModal()">
+                    + Поезд қосу / Добавить поезд
+                </button>
+            </div>
+        </div>
+
+        {% for t in trains %}
+        <div class="train-admin-card">
+            <div class="train-admin-header">
+                <div>
+                    <h3 class="train-number-title">Поезд № {{ t.train_number }}</h3>
+                    <span class="train-route-text">{{ t.route_name }}</span>
+                </div>
+                <span class="train-active-pill"{% if not t.is_active %} style="background:#fdecea;color:#c0392b;"{% endif %}>{% if t.is_active %}Белсенді / Активен{% else %}Өшірулі / Отключён{% endif %}</span>
+            </div>
+            <div class="train-wa-row" style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin: 10px 0 14px; font-size:.92rem;">
+                <span>👨‍🍳 {% if t.cook_name %}<strong>{{ t.cook_name }}</strong>{% else %}<em style="color:#888;">аспаз аты көрсетілмеген</em>{% endif %}</span>
+                <span>📱 WhatsApp:
+                    {% if t.whatsapp_phone %}<strong>+{{ t.whatsapp_phone }}</strong>
+                    {% else %}<strong style="color:#c0392b;">нөмір көрсетілмеген — тапсырыс WhatsApp-қа жіберілмейді</strong>{% endif %}
+                </span>
+                <button type="button" class="btn-secondary" style="padding:6px 14px;"
+                    data-id="{{ t.id }}" data-train="{{ t.train_number }}" data-route="{{ t.route_name }}"
+                    data-cook="{{ t.cook_name }}" data-phone="{{ t.whatsapp_phone }}" data-active="{{ 1 if t.is_active else 0 }}"
+                    onclick="openEditTrainModal(this)">✎ Аспаз / WhatsApp өзгерту</button>
+            </div>
+
+            <div class="carriages-list-grid">
+                {% for c in t.carriages %}
+                {% set qr_url = base_url + "/menu?q=" + c.qr_token %}
+                <div class="carriage-admin-pill">
+                    <div class="c-info">
+                        <strong>Вагон № {{ c.carriage_number }}</strong>
+                        <small>{{ c.carriage_type }}</small>
+                        <span style="font-size: 0.75rem; color: {% if c.delivery_enabled %}var(--color-status-ready){% else %}var(--color-status-cancelled){% endif %};">
+                            {% if c.delivery_enabled %}✓ Доставка қосулы{% else %}✗ Доставка сөндірулі{% endif %}
+                        </span>
+                    </div>
+                    <div class="c-token-box">
+                        <span class="token-label">Токен: <code>{{ c.qr_token }}</code></span>
+                        <a href="{{ qr_url }}" target="_blank" class="btn-link-action">Ашу / Открыть</a>
+                        <button type="button" class="btn-copy-url" onclick="copyUrl('{{ qr_url }}')">Сілтеме</button>
+                        <a href="/api/qr/{{ c.qr_token }}" target="_blank" class="btn-link-action" style="background: rgba(28,49,85,0.06);">QR</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</main>
+
+<!-- Modal: Add Train -->
+<div class="modal-overlay" id="addTrainModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>Жаңа поезд тіркеу</h3>
+            <button type="button" class="btn-close-modal" onclick="closeAddTrainModal()">&times;</button>
+        </div>
+        <form id="addTrainForm" style="padding: 20px;">
+            <div class="form-group">
+                <label class="form-label required">Поезд нөмірі (мысалы: 085)</label>
+                <input type="text" id="trainNumber" class="form-control" required placeholder="085">
+            </div>
+            <div class="form-group">
+                <label class="form-label required">Бағыты / Маршрут</label>
+                <input type="text" id="routeName" class="form-control" required placeholder="Астана → Шымкент">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Аспаз (повар) аты / Имя повара</label>
+                <input type="text" id="trainCookName" class="form-control" placeholder="Мысалы: Серік">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Аспаздың WhatsApp нөмірі</label>
+                <input type="tel" id="trainWhatsapp" class="form-control" placeholder="+7 707 123 45 67">
+                <small style="color: var(--color-warm-gray);">Осы пойыздың барлық тапсырысы осы нөмірге жіберіледі.</small>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 14px;">
+                Поездты сақтау / Добавить
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Train (повар / WhatsApp) -->
+<div class="modal-overlay" id="editTrainModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="editTrainTitle">Поезд / Аспаз</h3>
+            <button type="button" class="btn-close-modal" onclick="closeEditTrainModal()">&times;</button>
+        </div>
+        <form id="editTrainForm" style="padding: 20px;">
+            <input type="hidden" id="editTrainId">
+            <div class="form-group">
+                <label class="form-label required">Бағыты / Маршрут</label>
+                <input type="text" id="editRouteName" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Аспаз (повар) аты / Имя повара</label>
+                <input type="text" id="editCookName" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Аспаздың WhatsApp нөмірі</label>
+                <input type="tel" id="editWhatsapp" class="form-control" placeholder="+7 707 123 45 67">
+                <small style="color: var(--color-warm-gray);">Бос қалдырсаңыз, бұл пойыз үшін WhatsApp батырмасы шықпайды.</small>
+            </div>
+            <div class="form-group">
+                <label style="display:flex; gap:8px; align-items:center;">
+                    <input type="checkbox" id="editTrainActive"> Белсенді / Активен (тапсырыс қабылдайды)
+                </label>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 14px;">Сақтау / Сохранить</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add Carriage -->
+<div class="modal-overlay" id="addCarriageModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>Поездқа жаңа вагон қосу</h3>
+            <button type="button" class="btn-close-modal" onclick="closeAddCarriageModal()">&times;</button>
+        </div>
+        <form id="addCarriageForm" style="padding: 20px;">
+            <div class="form-group">
+                <label class="form-label required">Поезд таңдаңыз</label>
+                <select id="carriageTrainSelect" class="form-control" required>
+                    {% for t in trains %}
+                    <option value="{{ t.id }}">№ {{ t.train_number }} ({{ t.route_name }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label required">Вагон нөмірі</label>
+                <input type="text" id="carriageNumber" class="form-control" required placeholder="Мысалы: 8">
+            </div>
+            <div class="form-group">
+                <label class="form-label required">Вагон типі</label>
+                <select id="carriageType" class="form-control">
+                    <option value="Купе">Купе (Compartment)</option>
+                    <option value="Плацкарт">Плацкарт (Reserved seat)</option>
+                    <option value="СВ">СВ (Deluxe compartment)</option>
+                    <option value="Вагон-ресторан">Вагон-ресторан (Dining car)</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 14px;">
+                Вагонды сақтау / Добавить вагон
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openAddTrainModal() { document.getElementById('addTrainModal').classList.add('open'); }
+function closeAddTrainModal() { document.getElementById('addTrainModal').classList.remove('open'); }
+
+function openAddCarriageModal() { document.getElementById('addCarriageModal').classList.add('open'); }
+function closeAddCarriageModal() { document.getElementById('addCarriageModal').classList.remove('open'); }
+
+function openEditTrainModal(btn) {
+    document.getElementById('editTrainId').value = btn.dataset.id;
+    document.getElementById('editTrainTitle').textContent = 'Поезд № ' + btn.dataset.train + ' — аспаз / WhatsApp';
+    document.getElementById('editRouteName').value = btn.dataset.route || '';
+    document.getElementById('editCookName').value = btn.dataset.cook || '';
+    document.getElementById('editWhatsapp').value = btn.dataset.phone ? '+' + btn.dataset.phone : '';
+    document.getElementById('editTrainActive').checked = btn.dataset.active === '1';
+    document.getElementById('editTrainModal').classList.add('open');
+}
+function closeEditTrainModal() { document.getElementById('editTrainModal').classList.remove('open'); }
+
+document.getElementById('editTrainForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('editTrainId').value;
+    const payload = {
+        route_name: document.getElementById('editRouteName').value.trim(),
+        cook_name: document.getElementById('editCookName').value.trim(),
+        whatsapp_phone: document.getElementById('editWhatsapp').value.trim(),
+        is_active: document.getElementById('editTrainActive').checked
+    };
+    try {
+        const res = await fetch('/api/admin/trains/' + encodeURIComponent(id), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка сохранения.');
+        }
+    } catch (err) {
+        alert('Ошибка связи с сервером.');
+    }
+});
+
+document.getElementById('addTrainForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const payload = {
+        train_number: document.getElementById('trainNumber').value.trim(),
+        route_name: document.getElementById('routeName').value.trim(),
+        cook_name: document.getElementById('trainCookName').value.trim(),
+        whatsapp_phone: document.getElementById('trainWhatsapp').value.trim()
+    };
+    try {
+        const res = await fetch('/api/admin/trains', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка добавления поезда.');
+        }
+    } catch (e) {
+        alert('Ошибка связи с сервером.');
+    }
+});
+
+document.getElementById('addCarriageForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const payload = {
+        train_id: parseInt(document.getElementById('carriageTrainSelect').value, 10),
+        carriage_number: document.getElementById('carriageNumber').value.trim(),
+        carriage_type: document.getElementById('carriageType').value
+    };
+    try {
+        const res = await fetch('/api/admin/carriages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка добавления вагона.');
+        }
+    } catch (e) {
+        alert('Ошибка связи с сервером.');
+    }
+});
+
+function copyUrl(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('✓ QR-сілтеме буферге көшірілді / Ссылка скопирована!');
+    });
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+}
+</script>
+{% endblock %}

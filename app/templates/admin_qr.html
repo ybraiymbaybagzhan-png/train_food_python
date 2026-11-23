@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}QR-кодтарды басқару / Управление QR-кодами — DAR | RES group Admin{% endblock %}
+
+{% block content %}
+<header class="admin-header">
+    <div class="container header-inner">
+        <div class="admin-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="admin-logo">
+            <div class="admin-title-box">
+                <h1>QR-кодтар / QR Code Manager</h1>
+                <span class="admin-badge">Onboard QR Generator & Print Cards</span>
+            </div>
+        </div>
+        <nav class="admin-nav">
+            <a href="/admin" class="admin-nav-link">Басты / Главная</a>
+            <a href="/admin/orders" class="admin-nav-link">Тапсырыстар / Заказы</a>
+            <a href="/admin/menu" class="admin-nav-link">Мәзір / Меню</a>
+            <a href="/admin/trains" class="admin-nav-link">Пойыздар / Поезда</a>
+            <a href="/admin/qr" class="admin-nav-link active">QR-кодтар</a>
+            <a href="/admin/users" class="admin-nav-link">Қызметкерлер / Пользователи</a>
+            <a href="/admin/reports" class="admin-nav-link">Есептер / Отчеты</a>
+            <a href="/logout" class="btn-logout" style="margin-left: 14px;">Выход</a>
+        </nav>
+    </div>
+</header>
+
+<main class="admin-main">
+    <div class="container">
+        <!-- Action Row: Create New QR Code Button -->
+        <div class="table-header-row" style="margin-bottom: 24px;">
+            <div>
+                <h2>Пойыздар мен орындарға арналған QR-кодтар</h2>
+                <p style="color: var(--color-warm-gray); font-size: 0.9rem;">
+                    Жолаушы QR-кодты сканерлегенде поезд және вагон нөмірі автоматты түрде қосымшаға енгізіледі.
+                </p>
+            </div>
+            <button type="button" class="btn-primary" onclick="openCreateQrModal()">
+                + Жаңа QR-код құру / Создать QR
+            </button>
+        </div>
+
+        <!-- QR Codes Grid with Live Preview and Print Cards -->
+        <div class="qr-cards-grid" id="qrCardsGrid">
+            {% for qr in qr_codes %}
+            {% set full_url = base_url + "/menu?q=" + qr.public_token %}
+            <div class="qr-management-card {% if not qr.is_active %}qr-disabled{% endif %}">
+                <div class="qr-card-header">
+                    <span class="qr-train-tag">Поезд № {{ qr.train_number }}</span>
+                    <span class="qr-status-pill {% if qr.is_active %}active{% else %}inactive{% endif %}">
+                        {% if qr.is_active %}Белсенді / Активен{% else %}Сөндірілген{% endif %}
+                    </span>
+                </div>
+
+                <div class="qr-preview-box">
+                    <img src="/api/qr/{{ qr.public_token }}" alt="QR Code" class="qr-svg-image" id="qrImg_{{ qr.id }}">
+                </div>
+
+                <div class="qr-card-details">
+                    <div class="qr-info-row">
+                        <span>Вагон:</span>
+                        <strong>{{ qr.carriage_number }}</strong>
+                    </div>
+                    {% if qr.table_number %}
+                    <div class="qr-info-row">
+                        <span>Орын / Стол:</span>
+                        <strong>{{ qr.table_number }}</strong>
+                    </div>
+                    {% endif %}
+                    <div class="qr-info-row">
+                        <span>Токен:</span>
+                        <code class="qr-token-code">{{ qr.public_token }}</code>
+                    </div>
+                </div>
+
+                <div class="qr-actions-row">
+                    <button type="button" class="btn-print-qr" onclick="printSingleQrCard('{{ qr.train_number }}', '{{ qr.carriage_number }}', '{{ qr.table_number or '' }}', '{{ qr.public_token }}')">
+                        🖨️ Басып шығару / Печать
+                    </button>
+                    <a href="/api/qr/{{ qr.public_token }}?download=1" class="btn-download-svg" download="QR_Train_{{ qr.train_number }}_Wagon_{{ qr.carriage_number }}.svg">
+                        ⬇️ SVG
+                    </a>
+                    <button type="button" class="btn-copy-url" onclick="copyQrLink('{{ full_url }}')">
+                        🔗 Ссылка
+                    </button>
+                    <button type="button" class="btn-toggle-qr" onclick="toggleQrActive({{ qr.id }}, {{ 'false' if qr.is_active else 'true' }})">
+                        {% if qr.is_active %}Сөндіру{% else %}Қосу{% endif %}
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</main>
+
+<!-- Modal: Create New QR Code -->
+<div class="modal-overlay" id="createQrModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>Жаңа QR-код жасау / Создать QR-код</h3>
+            <button type="button" class="btn-close-modal" onclick="closeCreateQrModal()">&times;</button>
+        </div>
+        <form id="createQrForm" style="padding: 20px;">
+            <div class="form-group">
+                <label class="form-label required">Поезд нөмірі / Номер поезда</label>
+                <input type="text" id="newQrTrain" class="form-control" placeholder="Мысалы: 071" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label required">Вагон нөмірі / Номер вагона</label>
+                <input type="text" id="newQrWagon" class="form-control" placeholder="Мысалы: 7" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Орын немесе столик нөмірі (қалауыңызша)</label>
+                <input type="text" id="newQrTable" class="form-control" placeholder="Мысалы: 18 немесе Стол 1">
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">
+                QR-кодты жасау / Сгенерировать
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Hidden Printable Card Container for Railway Table Tent Sticker -->
+<div id="printContainer" class="print-container" style="display: none;">
+    <div class="print-card-stand">
+        <img src="/static/assets/dar_res_logo.jpeg" alt="DAR | RES group" class="print-logo">
+        <h2 class="print-brand-title">DAR | RES group</h2>
+        <p class="print-brand-sub">ПОЙЫЗДАҒЫ МЕЙРАМХАНА / РЕСТОРАН В ПОЕЗДЕ</p>
+        <div class="print-qr-frame">
+            <img id="printQrImage" src="" alt="QR">
+        </div>
+        <div class="print-context-box">
+            <strong id="printTrainWagonText">ПОЕЗД № 071 • ВАГОН 7</strong>
+            <span id="printSeatText"></span>
+        </div>
+        <div class="print-instruction">
+            <strong>СКАНИРЛЕҢІЗ ЖӘНЕ ТАПСЫРЫС БЕРІҢІЗ</strong><br>
+            <span>ОТСКАНИРУЙТЕ ДЛЯ ЗАКАЗА ЕДЫ НА МЕСТО</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openCreateQrModal() {
+    document.getElementById('createQrModal').classList.add('open');
+}
+function closeCreateQrModal() {
+    document.getElementById('createQrModal').classList.remove('open');
+}
+
+document.getElementById('createQrForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const train = document.getElementById('newQrTrain').value.trim();
+    const wagon = document.getElementById('newQrWagon').value.trim();
+    const table = document.getElementById('newQrTable').value.trim();
+
+    try {
+        const res = await fetch('/api/admin/qr/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ train_number: train, carriage_number: wagon, table_number: table })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка создания QR-кода.');
+        }
+    } catch (e) {
+        alert('Ошибка связи с сервером.');
+    }
+});
+
+async function toggleQrActive(qrId, targetActive) {
+    try {
+        const res = await fetch(`/api/admin/qr/${qrId}/toggle`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: targetActive })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            window.location.reload();
+        } else {
+            alert(data.detail || 'Ошибка переключения QR.');
+        }
+    } catch (e) {
+        alert('Ошибка связи с сервером.');
+    }
+}
+
+function copyQrLink(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('✓ QR-сілтеме көшірілді / Ссылка скопирована!');
+    });
+}
+
+function printSingleQrCard(train, wagon, seat, token) {
+    const printImg = document.getElementById('printQrImage');
+    printImg.src = `/api/qr/${token}`;
+    document.getElementById('printTrainWagonText').textContent = `ПОЕЗД № ${train} • ВАГОН ${wagon}`;
+    document.getElementById('printSeatText').textContent = seat ? `Орын / Место: ${seat}` : '';
+
+    const printWin = window.open('', '_blank', 'width=600,height=700');
+    printWin.document.write(`
+        <html>
+        <head>
+            <title>DAR | RES QR Card - Train ${train} Wagon ${wagon}</title>
+            <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; margin: 0; padding: 40px; background: #fff; color: #1C3155; }
+                .card { border: 2px solid #1C3155; border-radius: 16px; padding: 30px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+                .logo { max-height: 50px; margin-bottom: 12px; }
+                h2 { margin: 8px 0 4px; font-size: 24px; color: #1C3155; }
+                .sub { color: #888580; font-size: 13px; letter-spacing: 1px; margin-bottom: 20px; font-weight: 600; }
+                .qr { width: 220px; height: 220px; margin: 10px auto; display: block; border: 4px solid #F7F7F5; border-radius: 8px; }
+                .context { background: #1C3155; color: #fff; padding: 12px; border-radius: 8px; margin: 20px 0 10px; font-size: 18px; font-weight: bold; }
+                .seat { display: block; font-size: 14px; margin-top: 4px; color: #EFECE6; }
+                .inst { font-size: 13px; color: #1C3155; margin-top: 14px; line-height: 1.4; }
+            </style>
+        </head>
+        <body onload="window.print(); window.close();">
+            <div class="card">
+                <img src="/static/assets/dar_res_logo.jpeg" class="logo" />
+                <h2>DAR | RES group</h2>
+                <div class="sub">ONBOARD TRAIN RESTAURANT</div>
+                <img src="/api/qr/${token}" class="qr" />
+                <div class="context">
+                    ПОЕЗД № ${train} • ВАГОН ${wagon}
+                    ${seat ? `<span class="seat">Орын / Место: ${seat}</span>` : ''}
+                </div>
+                <div class="inst">
+                    <strong>СКАНИРЛЕҢІЗ ЖӘНЕ ТАПСЫРЫС БЕРІҢІЗ</strong><br>
+                    <span>ОТСКАНИРУЙТЕ ДЛЯ ЗАКАЗА ЕДЫ НА МЕСТО</span>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+}
+</script>
+{% endblock %}

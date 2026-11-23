@@ -1,0 +1,1448 @@
+{% extends "base.html" %}
+
+{% block title %}DAR | RES group — Ресторан в поезде | Онлайн заказ на место{% endblock %}
+
+{% block content %}
+<!-- Compact Sticky Header -->
+<header class="passenger-header" id="passengerHeader">
+    <div class="container header-inner">
+        <!-- Hamburger Button for Mobile -->
+        <button type="button" class="btn-hamburger" id="hamburgerBtn" aria-label="Мәзір / Меню">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Logo Left -->
+        <a href="/" class="brand-logo-link" aria-label="DAR | RES group">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="brand-logo-img">
+        </a>
+
+        <!-- Desktop Navigation -->
+        <nav class="passenger-nav" id="passengerNav">
+            <a href="#hero" class="p-nav-link active" data-i18n="nav_home">Главная</a>
+            <a href="#menu-anchor" class="p-nav-link" data-i18n="nav_menu">Меню</a>
+            <a href="/lunchboxes" class="p-nav-link" data-i18n="nav_lunchboxes">{% if current_lang in ['kz', 'kk'] %}Ланчбокстар{% elif current_lang == 'en' %}Lunchboxes{% else %}Ланчбоксы{% endif %}</a>
+            <button type="button" class="p-nav-link" id="myOrdersNavBtn" style="background:none; border:none; cursor:pointer;" data-i18n="nav_my_order">Мой заказ</button>
+            <a href="#about-service" class="p-nav-link" data-i18n="nav_about">О сервисе</a>
+            <a href="#contacts" class="p-nav-link" data-i18n="nav_contacts">Контакты</a>
+        </nav>
+
+        <!-- Right: Train Context, Language Switcher & Cart Pill -->
+        <div class="passenger-header-right">
+            <!-- Language Switcher: KZ | RU | EN -->
+            <div class="lang-selector-pill" role="group" aria-label="Выбор языка">
+                <button type="button" class="lang-toggle-btn {% if current_lang == 'kz' %}active{% endif %}" data-lang="kz">KZ</button>
+                <button type="button" class="lang-toggle-btn {% if current_lang == 'ru' or not current_lang %}active{% endif %}" data-lang="ru">RU</button>
+                <button type="button" class="lang-toggle-btn {% if current_lang == 'en' %}active{% endif %}" data-lang="en">EN</button>
+            </div>
+
+            <!-- Sticky Cart Button with Counter -->
+            <button type="button" class="btn-cart-trigger" id="cartOpenBtn" aria-label="Открыть корзину">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+                <span class="cart-label" data-i18n="cart_title">Корзина</span>
+                <span class="cart-badge-count" id="headerCartCount">0</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- Mobile Navigation Drawer -->
+<div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
+<aside class="mobile-nav-drawer" id="mobileNavDrawer">
+    <div class="mobile-nav-header">
+        <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES" style="height: 38px;">
+        <button type="button" class="btn-close-modal" id="mobileNavCloseBtn" style="font-size: 1.5rem; background:none; border:none; cursor:pointer;">&times;</button>
+    </div>
+    <div class="mobile-nav-links">
+        <a href="#hero" class="mobile-nav-link" data-i18n="nav_home" onclick="closeMobileNav()">Главная</a>
+        <a href="#menu-anchor" class="mobile-nav-link" data-i18n="nav_menu" onclick="closeMobileNav()">Меню</a>
+        <a href="/lunchboxes" class="mobile-nav-link" data-i18n="nav_lunchboxes" onclick="closeMobileNav()">{% if current_lang in ['kz', 'kk'] %}Ланчбокстар{% elif current_lang == 'en' %}Lunchboxes{% else %}Ланчбоксы{% endif %}</a>
+        <button type="button" class="mobile-nav-link" id="mobileMyOrderBtn" data-i18n="nav_my_order">Мой заказ</button>
+        <a href="#about-service" class="mobile-nav-link" data-i18n="nav_about" onclick="closeMobileNav()">О сервисе</a>
+        <a href="#contacts" class="mobile-nav-link" data-i18n="nav_contacts" onclick="closeMobileNav()">Контакты</a>
+    </div>
+</aside>
+
+<main class="passenger-main">
+    <!-- Ordering Closed Alert if configured -->
+    {% if ordering_mode == 'CLOSED' %}
+    <div class="ordering-closed-banner">
+        <div class="container">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span data-i18n="ordering_closed_msg">Прием заказов временно приостановлен. Вы можете просматривать меню.</span>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if qr_invalid %}
+    <div class="ordering-closed-banner" style="background: #FFFBEB; border-bottom: 1px solid #FCD34D; color: #92400E;">
+        <div class="container" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>QR-код табылмады немесе сөндірілген. Поезд № {{ train_no }}, Вагон {{ wagon_no }} таңдалды / QR-код не распознан. Установлен поезд по умолчанию.</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Offline Connection Warning Toast Bar -->
+    <div id="offlineIndicator" class="offline-indicator" style="display: none;">
+        <span data-i18n="offline_text">⚠️ Соединение с сервером прервано. Корзина сохранена. Идет повторное подключение...</span>
+    </div>
+
+    <!-- Hero Section: Dining on the Journey -->
+    <section class="train-hero-section" id="hero">
+        <div class="hero-bg-wrapper">
+            <img src="{{ url_for('static', path='assets/hero_ambience.jpg') }}" alt="Dining on the journey" class="hero-bg-img">
+            <div class="hero-vignette"></div>
+        </div>
+        <div class="container hero-content-box">
+            <div class="hero-tag-railway">
+                <span class="rail-dot"></span>
+                <span>DAR | RES group • ONBOARD DINING</span>
+            </div>
+            <h1 class="hero-main-title" data-i18n="hero_title">DINING ON THE JOURNEY</h1>
+            <p class="hero-description" data-i18n="hero_subtitle">
+                Order fresh meals and drinks during your railway journey and have your order delivered onboard directly to your carriage and seat.
+            </p>
+            <div class="hero-action-row">
+                <a href="#menu-anchor" class="btn-primary hero-btn" data-i18n="btn_order_food">
+                    ТАПСЫРЫС БЕРУ / ЗАКАЗАТЬ ЕДУ
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section with Railway Track Line -->
+    <section class="how-it-works-section" id="how-it-works">
+        <div class="container">
+            <div class="section-title-wrap">
+                <span class="sub-label">DAR | RES ONBOARD SERVICE</span>
+                <h2 class="main-title" data-i18n="how_title">Как работает сервис в поезде</h2>
+            </div>
+
+            <div class="rail-steps-track">
+                <div class="rail-step-card">
+                    <div class="step-badge">1</div>
+                    <h3 class="step-name" data-i18n="step1_title">Сканируйте QR</h3>
+                    <p class="step-desc" data-i18n="step1_desc">QR-код на вашем месте или столе автоматически определяет номер поезда и вагона.</p>
+                </div>
+                <div class="rail-step-connector"></div>
+                <div class="rail-step-card">
+                    <div class="step-badge">2</div>
+                    <h3 class="step-name" data-i18n="step2_title">Выберите блюда</h3>
+                    <p class="step-desc" data-i18n="step2_desc">Свежие горячие блюда, завтраки, выпечка и барное меню ресторана DAR | RES.</p>
+                </div>
+                <div class="rail-step-connector"></div>
+                <div class="rail-step-card">
+                    <div class="step-badge">3</div>
+                    <h3 class="step-name" data-i18n="step3_title">Кухня готовит</h3>
+                    <p class="step-desc" data-i18n="step3_desc">Аспаз тапсырысыңызды жедел қабылдап, пойыздағы асханада балғын күйінде пісіреді.</p>
+                </div>
+                <div class="rail-step-connector"></div>
+                <div class="rail-step-card">
+                    <div class="step-badge">4</div>
+                    <h3 class="step-name" data-i18n="step4_title">Доставка на место</h3>
+                    <p class="step-desc" data-i18n="step4_desc">Проводник доставит горячий заказ прямо в ваше купе или на посадочное место.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div id="menu-anchor"></div>
+
+    <!-- Category Selector (Horizontally Scrollable on Mobile) -->
+    <section class="sticky-category-bar" id="stickyCategoryBar">
+        <div class="container">
+            <div class="categories-scroll-tray" id="categoryScrollTray">
+                <button type="button" class="cat-pill active" data-cat="all" data-i18n="cat_all">{% if current_lang == 'kz' %}Барлық тағамдар{% elif current_lang == 'en' %}All dishes{% else %}Все блюда{% endif %}</button>
+                {% for cat in categories %}
+                <button type="button" class="cat-pill" data-cat="{{ cat.code }}" data-cat-id="{{ cat.id }}"
+                    data-name-ru="{{ cat.name_ru }}" data-name-kz="{{ cat.name_kz }}" data-name-en="{{ cat.name_en }}">
+                    {% if current_lang == 'kz' %}{{ cat.name_kz }}{% elif current_lang == 'en' %}{{ cat.name_en }}{% else %}{{ cat.name_ru }}{% endif %}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Menu Section -->
+    <section class="passenger-menu-section">
+        <div class="container">
+            <!-- Search & Filter Controls -->
+            <div class="menu-filter-bar">
+                <div class="search-input-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="search" id="dishSearchInput" class="dish-search-input" placeholder="Поиск блюда, напитка или ингредиентов..." aria-label="Поиск по меню">
+                </div>
+            </div>
+
+            <!-- Menu Cards Container (Dynamic rendering with server data cache) -->
+            <div class="dishes-grid" id="dishesGrid">
+                <div class="loading-spinner-state">
+                    <div class="spinner"></div>
+                    <p data-i18n="loading_menu">Жүктелуде / Загрузка меню ресторана...</p>
+                </div>
+            </div>
+
+            <!-- Service Charge Notice Banner -->
+            <div class="service-charge-banner">
+                <div class="sc-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                </div>
+                <div class="sc-content">
+                    <strong>Қызмет 10% | Обслуживание 10% | Service 10%</strong>
+                    <p data-i18n="sc_desc">Қызмет ақысы тапсырыс жиынтығына автоматты түрде қосылады.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- About Onboard Dining Service Section (Section 67) -->
+    <section class="about-dining-section" id="about-service">
+        <div class="container">
+            <div class="about-dining-grid">
+                <div class="about-dining-content">
+                    <span class="sub-label">DAR | RES group • ONBOARD SERVICE</span>
+                    <h2 data-i18n="about_dining_title">ONBOARD DINING</h2>
+                    <p data-i18n="about_dining_desc">
+                        DAR | RES group provides food and beverage service for passengers during their railway journey. Passengers can browse the digital menu, place an order from their smartphone, and receive the prepared order onboard.
+                    </p>
+                    <div class="about-features-list">
+                        <div class="about-feature-item">
+                            <div class="about-feature-icon">✓</div>
+                            <span data-i18n="about_feat1">Свежеприготовленные горячие блюда в вагоне-кухне</span>
+                        </div>
+                        <div class="about-feature-item">
+                            <div class="about-feature-icon">✓</div>
+                            <span data-i18n="about_feat2">Быстрая доставка проводником прямо на ваше место в поезде</span>
+                        </div>
+                        <div class="about-feature-item">
+                            <div class="about-feature-icon">✓</div>
+                            <span data-i18n="about_feat3">Отслеживание статуса заказа в реальном времени</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-dining-visual">
+                    <img src="{{ url_for('static', path='assets/about_dining.jpg') }}" alt="Onboard Dining Service" class="about-dining-img">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contacts & Support Section (Section 69) -->
+    <section class="contacts-section" id="contacts">
+        <div class="container">
+            <div class="section-title-wrap">
+                <span class="sub-label">DAR | RES group • CONTACTS</span>
+                <h2 class="main-title" data-i18n="contacts_title">Байланыс & Қолдау / Контакты и поддержка</h2>
+            </div>
+            <div class="contacts-grid">
+                <div class="contact-card">
+                    <div class="contact-icon-box">📞</div>
+                    <div class="contact-info">
+                        <strong data-i18n="cnt_phone">Телефон</strong>
+                        <span>+7 (7172) 00-00-00</span>
+                    </div>
+                </div>
+                <div class="contact-card">
+                    <div class="contact-icon-box">💬</div>
+                    <div class="contact-info">
+                        <strong data-i18n="cnt_whatsapp">WhatsApp</strong>
+                        <span>+7 (777) 000-00-00</span>
+                    </div>
+                </div>
+                <div class="contact-card">
+                    <div class="contact-icon-box">✉️</div>
+                    <div class="contact-info">
+                        <strong data-i18n="cnt_email">Email</strong>
+                        <span>support@darres.kz</span>
+                    </div>
+                </div>
+                <div class="contact-card">
+                    <div class="contact-icon-box">📸</div>
+                    <div class="contact-info">
+                        <strong data-i18n="cnt_instagram">Instagram</strong>
+                        <span>@dar_res_group</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Slide-Out Shopping Cart Drawer -->
+<div class="cart-backdrop" id="cartBackdrop"></div>
+<aside class="cart-drawer" id="cartDrawer" aria-label="Корзина заказа">
+    <div class="cart-header">
+        <div class="cart-header-title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            <h2 data-i18n="cart_heading">{% if current_lang == 'kz' %}Сіздің тапсырысыңыз{% elif current_lang == 'en' %}Your order{% else %}Ваш заказ{% endif %}</h2>
+        </div>
+        <button type="button" class="btn-close-cart" id="cartCloseBtn" aria-label="Закрыть корзину">&times;</button>
+    </div>
+
+    <!-- Train & Carriage delivery destination tag -->
+    <div class="cart-destination-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        <span id="cartDestinationText">{% if current_lang == 'kz' %}Жеткізу: Пойыз {{ train_no }}, Вагон {{ wagon_no }}{% elif current_lang == 'en' %}Delivery: Train {{ train_no }}, Carriage {{ wagon_no }}{% else %}Доставка: Поезд {{ train_no }}, Вагон {{ wagon_no }}{% endif %}</span>
+    </div>
+
+    <div class="cart-items-list" id="cartItemsList">
+        <!-- Rendered by JS -->
+    </div>
+
+    <div class="cart-summary-section">
+        <div class="cart-calc-row">
+            <span data-i18n="cart_subtotal">{% if current_lang == 'kz' %}Тағамдар бағасы:{% elif current_lang == 'en' %}Subtotal:{% else %}Подытог:{% endif %}</span>
+            <span class="calc-val" id="cartSubtotalVal">0 ₸</span>
+        </div>
+        <div class="cart-calc-row service-charge-row">
+            <span data-i18n="cart_service_charge">{% if current_lang == 'kz' %}Қызмет көрсету 10%:{% elif current_lang == 'en' %}Service charge 10%:{% else %}Обслуживание 10%:{% endif %}</span>
+            <span class="calc-val" id="cartServiceChargeVal">0 ₸</span>
+        </div>
+        <div class="cart-calc-row total-row">
+            <span data-i18n="cart_total">{% if current_lang == 'kz' %}ЖИЫНЫ:{% elif current_lang == 'en' %}TOTAL:{% else %}ИТОГО:{% endif %}</span>
+            <span class="calc-val total-price" id="cartTotalVal">0 ₸</span>
+        </div>
+
+        <button type="button" class="btn-primary checkout-btn" id="proceedToCheckoutBtn" data-i18n="btn_checkout">
+            {% if current_lang == 'kz' %}Тапсырысты рәсімдеу{% elif current_lang == 'en' %}Place order{% else %}Оформить заказ{% endif %}
+        </button>
+        <button type="button" class="btn-clear-cart" id="clearCartBtn" data-i18n="btn_clear_cart">
+            {% if current_lang == 'kz' %}Себетті тазалау{% elif current_lang == 'en' %}Clear cart{% else %}Очистить корзину{% endif %}
+        </button>
+    </div>
+</aside>
+
+<!-- Checkout Modal -->
+<div class="modal-overlay" id="checkoutModal" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
+    <div class="modal-card checkout-modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title" id="checkoutTitle" data-i18n="checkout_title">Оформление доставки на место</h3>
+            <button type="button" class="btn-close-modal" id="checkoutCloseBtn">&times;</button>
+        </div>
+
+        <form id="orderForm" class="checkout-form">
+            <!-- Train & Wagon (Pre-filled and prominent) -->
+            <div class="form-row-grid">
+                <div class="form-group">
+                    <label class="form-label" data-i18n="lbl_train">Поезд</label>
+                    <input type="text" id="orderTrainNo" class="form-control" value="{{ train_no }}" required readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" data-i18n="lbl_wagon">Вагон</label>
+                    <input type="text" id="orderWagonNo" class="form-control" value="{{ wagon_no }}" required readonly>
+                </div>
+            </div>
+
+            <!-- Seat / Compartment / Table Number -->
+            <div class="form-row-grid">
+                <div class="form-group">
+                    <label class="form-label required" data-i18n="lbl_seat_number">Орын нөмірі / Номер места</label>
+                    <input type="text" id="orderSeatNo" class="form-control highlight-input" value="{{ seat_no }}" placeholder="Мысалы: 18" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" data-i18n="lbl_compartment_number">Купе / Столик (қажет болса)</label>
+                    <input type="text" id="orderCompNo" class="form-control" placeholder="Купе №...">
+                </div>
+            </div>
+
+            <!-- Passenger Name & Phone -->
+            <div class="form-row-grid">
+                <div class="form-group">
+                    <label class="form-label" data-i18n="lbl_name">Аты-жөніңіз / Имя</label>
+                    <input type="text" id="orderPassengerName" class="form-control" placeholder="Мысалы: Арман">
+                </div>
+                <div class="form-group">
+                    <label class="form-label required" data-i18n="lbl_phone">Телефон нөмірі</label>
+                    <input type="tel" id="orderPhone" class="form-control" placeholder="+7 (7XX) XXX-XX-XX" required>
+                </div>
+            </div>
+
+            <!-- Comment -->
+            <div class="form-group">
+                <label class="form-label" data-i18n="lbl_comment">Аспазға ескерту / Комментарий</label>
+                <textarea id="orderComment" class="form-control" rows="2" placeholder="Пиязсыз, ыстық шай, т.б..."></textarea>
+            </div>
+
+            <!-- Order Review Summary inside Modal -->
+            <div class="checkout-review-box">
+                <div class="review-title" data-i18n="order_review_heading">Сводка заказа:</div>
+                <div id="checkoutReviewItems" class="review-items"></div>
+                <div class="review-total-line">
+                    <span>Итого к оплате (включая 10% обслуж.):</span>
+                    <strong id="checkoutReviewTotal">0 ₸</strong>
+                </div>
+            </div>
+
+            <div id="orderFormError" class="auth-error-msg" style="display: none;"></div>
+
+            <button type="submit" class="btn-primary btn-submit-order" id="submitOrderBtn">
+                <span id="submitBtnText" data-i18n="btn_place_order">ТАПСЫРЫСТЫ РАСТАУ / ПОДТВЕРДИТЬ ЗАКАЗ</span>
+                <span class="btn-spinner" id="submitSpinner" style="display: none;"></span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Floating Quick Cart Bar for Mobile Viewport -->
+<div class="floating-mobile-cart-bar" id="floatingCartBar">
+    <div class="floating-cart-info">
+        <span class="cart-items-qty" id="floatCartQty">0 блюд</span>
+        <span class="cart-sum" id="floatCartSum">0 ₸</span>
+    </div>
+    <button type="button" class="btn-float-cart" id="floatOpenCartBtn">
+        <span data-i18n="btn_view_cart">Себетті көру / Корзина</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </button>
+</div>
+
+<!-- My Order Modal (Section 6 & 28) -->
+<div class="modal-overlay" id="myOrderModal" role="dialog" aria-modal="true" aria-labelledby="myOrderTitle">
+    <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="myOrderTitle" data-i18n="my_order_title">Менің тапсырысым / Мой заказ</h3>
+            <button type="button" class="btn-close-modal" id="myOrderCloseBtn">&times;</button>
+        </div>
+        <div style="padding: 20px;">
+            <div id="recentOrdersContainer">
+                <p style="color: var(--color-warm-gray); font-size: 0.95rem; text-align: center; padding: 20px 0;">
+                    Бұл құрылғыда белсенді тапсырыс табылмады.<br>
+                    Нет активных заказов на этом устройстве.
+                </p>
+            </div>
+            <div style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;">
+                <label class="form-label" style="font-size: 0.88rem;" data-i18n="find_order_label">
+                    Тапсырыс нөмірі немесе коды бойынша іздеу:
+                </label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="manualOrderInput" class="form-control" placeholder="Мысалы: DAR-071-1001 немесе UUID...">
+                    <button type="button" class="btn-primary" onclick="lookupManualOrder()" style="padding: 8px 16px;" data-i18n="btn_find">
+                        Іздеу
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer (Section 70) -->
+<footer class="passenger-footer">
+    <div class="container">
+        <div class="p-footer-content">
+            <div class="p-footer-brand">
+                <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="p-footer-logo">
+                <p data-i18n="footer_tagline">{% if current_lang == 'kz' %}DAR | RES group — Пойыздардағы жолаушыларға арналған мейрамханалық тағамдар мен сусындар сервисі.{% elif current_lang == 'en' %}DAR | RES group — Restaurant food and beverage service for train passengers.{% else %}DAR | RES group — Сервис ресторанного питания и напитков для пассажиров поездов.{% endif %}</p>
+                <div class="footer-lang-row" style="margin-top: 12px; display: flex; gap: 8px;">
+                    <button type="button" class="lang-toggle-btn {% if current_lang == 'kz' %}active{% endif %}" data-lang="kz">KZ</button>
+                    <button type="button" class="lang-toggle-btn {% if current_lang == 'ru' or not current_lang %}active{% endif %}" data-lang="ru">RU</button>
+                    <button type="button" class="lang-toggle-btn {% if current_lang == 'en' %}active{% endif %}" data-lang="en">EN</button>
+                </div>
+            </div>
+            <div class="p-footer-links">
+                <a href="#hero" data-i18n="nav_home">Главная</a>
+                <a href="#menu-anchor" data-i18n="nav_menu">Меню</a>
+                <button type="button" class="p-footer-link-btn" onclick="openMyOrdersModal()" style="background:none; border:none; text-align:left; cursor:pointer; color:inherit; font:inherit;" data-i18n="nav_my_order">Мой заказ</button>
+                <a href="#about-service" data-i18n="nav_about">О сервисе</a>
+                <a href="#contacts" data-i18n="nav_contacts">Контакты</a>
+            </div>
+        </div>
+        <div class="p-footer-bottom">
+            <p data-i18n="footer_rights">{% if current_lang == 'kz' %}© 2026 DAR | RES group. Барлық құқықтар қорғалған.{% elif current_lang == 'en' %}© 2026 DAR | RES group. All rights reserved.{% else %}© 2026 DAR | RES group. Все права защищены.{% endif %}</p>
+        </div>
+    </div>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// =============================================================================
+// PASSENGER APP CLIENT SCRIPT - MULTILINGUAL (KZ / RU / EN)
+// =============================================================================
+const CURRENT_TRAIN = "{{ train_no }}";
+const CURRENT_WAGON = "{{ wagon_no }}";
+const CURRENT_SEAT = "{{ seat_no }}";
+// Әдепкі тіл — орыс (ru). Пайдаланушы тілді өзі ауыстырса ғана сақталады (v2: ескі сақталған kz/en тілі ескерілмейді).
+let activeLang = localStorage.getItem('dar_res_lang_v2') || '{{ current_lang }}' || 'ru';
+
+// Translations Dictionary
+const TRANSLATIONS = {
+    kz: {
+        nav_home: "Басты бет",
+        nav_menu: "Мәзір",
+        nav_lunchboxes: "Ланчбокстар",
+        nav_drinks: "Сусындар",
+        nav_about: "Сервис туралы",
+        nav_my_order: "Менің тапсырысым",
+        nav_contacts: "Байланыс",
+        cart_title: "Себет",
+        ordering_closed_msg: "Тапсырыс қабылдау уақытша тоқтатылды. Мәзірмен таныса аласыз.",
+        offline_text: "⚠️ Сервермен байланыс үзілді. Себет сақталды. Қайта қосылуда...",
+        hero_title: "САПАРДАҒЫ ДӘМДІ ТАҒАМДАР",
+        hero_subtitle: "Пойыз сапарында балғын ресторандық тағамдар мен сусындарға тапсырыс беріп, вагонға тікелей жеткізіп алыңыз.",
+        btn_order_food: "ТАМАҚҚА ТАПСЫРЫС БЕРУ",
+        btn_view_menu: "МӘЗІРДІ КӨРУ",
+        lbl_train: "Пойыз",
+        lbl_wagon: "Вагон",
+        lbl_seat: "Орын",
+        how_title: "Пойызда тапсырыс беру қалай жұмыс істейді",
+        step1_title: "QR-кодты сканерлеңіз",
+        step1_desc: "Орныңыздағы QR-код пойыз бен вагон нөмірін автоматты түрде анықтайды.",
+        step2_title: "Тағамды таңдаңыз",
+        step2_desc: "DAR | RES мейрамханасының балғын ыстық тағамдары мен сусындары.",
+        step3_title: "Асхана дайындайды",
+        step3_desc: "Аспаз тапсырысты қабылдап, пойыздағы асханада дайындайды.",
+        step4_title: "Орныңызға жеткізу",
+        step4_desc: "Жолсерік ыстық тағамды вагоныңыз бен орныңызға әкеліп береді.",
+        cat_all: "Барлық тағамдар",
+        loading_menu: "Мәзір жүктелуде...",
+        sc_desc: "10% қызмет ақысы тапсырыс сомасына автоматты түрде қосылады.",
+        about_dining_title: "ONBOARD DINING",
+        about_dining_desc: "DAR | RES group — Пойыздардағы жолаушыларға арналған мейрамханалық тағамдар мен сусындар сервисі.",
+        about_feat1: "Вагон-мейрамхана асханасында жаңадан дайындалған ыстық тағамдар",
+        about_feat2: "Жолсерік арқылы вагоныңыз бен орныңызға жедел әрі ыңғайлы жеткізу",
+        about_feat3: "Тапсырыс күйін смартфоннан нақты уақытта (real-time) бақылау",
+        contacts_title: "Байланыс & Қолдау",
+        cnt_phone: "Телефон",
+        cnt_whatsapp: "WhatsApp",
+        cnt_email: "Email",
+        cnt_instagram: "Instagram",
+        my_order_title: "Менің тапсырысым",
+        find_order_label: "Тапсырыс нөмірі немесе коды бойынша іздеу:",
+        btn_find: "Іздеу",
+        cart_heading: "Сіздің тапсырысыңыз",
+        cart_delivery_prefix: "Жеткізу: Пойыз",
+        cart_wagon_prefix: "Вагон",
+        cart_empty: "Себетіңіз бос",
+        cart_choose_dish: "Тағам таңдау",
+        cart_subtotal: "Тағамдар бағасы:",
+        cart_service_charge: "Қызмет көрсету 10% (Service):",
+        cart_total: "ЖИЫНТЫҒЫ:",
+        btn_checkout: "Тапсырысты рәсімдеу",
+        btn_clear_cart: "Себетті тазарту",
+        clear_cart_confirm: "Себетті тазалау керек пе?",
+        float_cart_dishes: "тағам",
+        dish_added_toast: "себетке қосылды!",
+        dish_search_placeholder: "Тағам, сусын немесе ингредиент бойынша іздеу...",
+        checkout_title: "Орынға жеткізуді рәсімдеу",
+        lbl_seat_number: "Орын нөмірі (Міндетті)",
+        lbl_compartment_number: "Купе нөмірі",
+        lbl_name: "Аты-жөніңіз",
+        lbl_phone: "Телефон нөмірі",
+        lbl_comment: "Аспазға ескерту",
+        order_review_heading: "Тапсырыс құрамы:",
+        btn_place_order: "ТАПСЫРЫСТЫ РАСТАУ",
+        btn_view_cart: "Себетті ашу",
+        sold_out: "ТАУСЫЛДЫ",
+        add_to_cart: "ҚОСУ",
+        footer_tagline: "DAR | RES group — Пойыздардағы жолаушыларға арналған мейрамханалық тағамдар мен сусындар сервисі.",
+        footer_rights: "© 2026 DAR | RES group. Барлық құқықтар қорғалған."
+    },
+    ru: {
+        nav_home: "Главная",
+        nav_menu: "Меню",
+        nav_lunchboxes: "Ланчбоксы",
+        nav_drinks: "Напитки",
+        nav_about: "О сервисе",
+        nav_my_order: "Мой заказ",
+        nav_contacts: "Контакты",
+        cart_title: "Корзина",
+        ordering_closed_msg: "Прием заказов временно приостановлен. Вы можете просматривать меню.",
+        offline_text: "⚠️ Потеряна связь с сервером. Корзина сохранена. Переподключение...",
+        hero_title: "РЕСТОРАННОЕ ПИТАНИЕ В ПОЕЗДЕ",
+        hero_subtitle: "Горячие ресторанные блюда, завтраки, выпечка и напитки с доставкой прямо на ваше место в вагоне во время поездки.",
+        btn_order_food: "ЗАКАЗАТЬ ЕДУ",
+        btn_view_menu: "СМОТРЕТЬ МЕНЮ",
+        lbl_train: "Поезд",
+        lbl_wagon: "Вагон",
+        lbl_seat: "Место",
+        how_title: "Как работает заказ питания в поезде",
+        step1_title: "Сканируйте QR-код",
+        step1_desc: "QR-код на вашем столике автоматически определяет номер поезда и вагона.",
+        step2_title: "Выберите блюда",
+        step2_desc: "Свежие горячие блюда, закуски и напитки из вагона-ресторана DAR | RES.",
+        step3_title: "Кухня готовит",
+        step3_desc: "Шеф-повар принимает заказ и готовит блюда на кухне вагона-ресторана.",
+        step4_title: "Доставка на место",
+        step4_desc: "Проводник приносит свежий заказ прямо к вашему купе и месту.",
+        cat_all: "Все блюда",
+        loading_menu: "Загрузка меню ресторана...",
+        sc_desc: "10% сервисный сбор за обслуживание включается в стоимость заказа.",
+        about_dining_title: "ONBOARD DINING",
+        about_dining_desc: "DAR | RES group — Сервис ресторанного питания и напитков для пассажиров поездов.",
+        about_feat1: "Свежеприготовленные горячие блюда в вагоне-кухне",
+        about_feat2: "Быстрая доставка проводником прямо на ваше место в поезде",
+        about_feat3: "Отслеживание статуса заказа в реальном времени",
+        contacts_title: "Контакты и поддержка",
+        cnt_phone: "Телефон",
+        cnt_whatsapp: "WhatsApp",
+        cnt_email: "Email",
+        cnt_instagram: "Instagram",
+        my_order_title: "Мой заказ",
+        find_order_label: "Поиск заказа по номеру или коду:",
+        btn_find: "Найти",
+        cart_heading: "Ваш заказ",
+        cart_delivery_prefix: "Доставка: Поезд",
+        cart_wagon_prefix: "Вагон",
+        cart_empty: "Ваша корзина пуста",
+        cart_choose_dish: "Выбрать блюдо",
+        cart_subtotal: "Подытог:",
+        cart_service_charge: "Обслуживание 10% (Service):",
+        cart_total: "ИТОГО:",
+        btn_checkout: "Оформить заказ",
+        btn_clear_cart: "Очистить корзину",
+        clear_cart_confirm: "Очистить корзину?",
+        float_cart_dishes: "блюд",
+        dish_added_toast: "добавлено в корзину!",
+        dish_search_placeholder: "Поиск блюда, напитка или ингредиентов...",
+        checkout_title: "Оформление доставки на место",
+        lbl_seat_number: "Номер места (Обязательно)",
+        lbl_compartment_number: "Купе / Столик",
+        lbl_name: "Ваше имя",
+        lbl_phone: "Номер телефона",
+        lbl_comment: "Пожелания повару",
+        order_review_heading: "Состав заказа:",
+        btn_place_order: "ПОДТВЕРДИТЬ ЗАКАЗ",
+        btn_view_cart: "Корзина",
+        sold_out: "ЗАКОНЧИЛОСЬ",
+        add_to_cart: "В КОРЗИНУ",
+        footer_tagline: "DAR | RES group — Сервис ресторанного питания и напитков для пассажиров поездов.",
+        footer_rights: "© 2026 DAR | RES group. Все права защищены."
+    },
+    en: {
+        nav_home: "Home",
+        nav_menu: "Menu",
+        nav_lunchboxes: "Lunchboxes",
+        nav_drinks: "Drinks",
+        nav_about: "About Service",
+        nav_my_order: "My Order",
+        nav_contacts: "Contacts",
+        cart_title: "Cart",
+        ordering_closed_msg: "Ordering is temporarily closed. You can browse the menu.",
+        offline_text: "⚠️ Server connection lost. Your cart is preserved. Reconnecting...",
+        hero_title: "DINING ON THE JOURNEY",
+        hero_subtitle: "Order fresh gourmet meals and drinks during your railway journey and have your order delivered onboard to your seat.",
+        btn_order_food: "ORDER FOOD",
+        btn_view_menu: "VIEW MENU",
+        lbl_train: "Train",
+        lbl_wagon: "Carriage",
+        lbl_seat: "Seat",
+        how_title: "How Onboard Ordering Works",
+        step1_title: "Scan QR Code",
+        step1_desc: "The QR code at your seat detects the train number and carriage automatically.",
+        step2_title: "Select Dishes",
+        step2_desc: "Fresh gourmet meals, hearty breakfasts, and beverages by DAR | RES.",
+        step3_title: "Kitchen Prepares",
+        step3_desc: "The chef accepts your order and prepares it fresh in the onboard galley.",
+        step4_title: "Seat-Side Delivery",
+        step4_desc: "Onboard staff delivers hot meals directly to your compartment and seat.",
+        cat_all: "All dishes",
+        loading_menu: "Loading restaurant menu...",
+        sc_desc: "10% service charge is automatically calculated by the server.",
+        about_dining_title: "ONBOARD DINING",
+        about_dining_desc: "DAR | RES group — Restaurant food and beverage service for train passengers.",
+        about_feat1: "Freshly prepared gourmet meals in the onboard galley",
+        about_feat2: "Swift seat-side delivery directly to your compartment",
+        about_feat3: "Real-time order progress tracking on your smartphone",
+        contacts_title: "Contacts & Support",
+        cnt_phone: "Phone",
+        cnt_whatsapp: "WhatsApp",
+        cnt_email: "Email",
+        cnt_instagram: "Instagram",
+        my_order_title: "My Order",
+        find_order_label: "Find order by number or code:",
+        btn_find: "Find",
+        cart_heading: "Your order",
+        cart_delivery_prefix: "Delivery: Train",
+        cart_wagon_prefix: "Carriage",
+        cart_empty: "Your cart is empty",
+        cart_choose_dish: "Choose a dish",
+        cart_subtotal: "Subtotal:",
+        cart_service_charge: "Service charge 10% (Service):",
+        cart_total: "TOTAL:",
+        btn_checkout: "Place order",
+        btn_clear_cart: "Clear cart",
+        clear_cart_confirm: "Clear cart?",
+        float_cart_dishes: "dishes",
+        dish_added_toast: "added to cart!",
+        dish_search_placeholder: "Search dish, drink, or ingredients...",
+        checkout_title: "Onboard Delivery Checkout",
+        lbl_seat_number: "Seat Number (Required)",
+        lbl_compartment_number: "Compartment / Table",
+        lbl_name: "Your Name",
+        lbl_phone: "Phone Number",
+        lbl_comment: "Notes to Kitchen",
+        order_review_heading: "Order Summary:",
+        btn_place_order: "PLACE ORDER",
+        btn_view_cart: "View Cart",
+        sold_out: "SOLD OUT",
+        add_to_cart: "ADD TO CART",
+        footer_tagline: "DAR | RES group — Restaurant food and beverage service for train passengers.",
+        footer_rights: "© 2026 DAR | RES group. All rights reserved."
+    }
+};
+TRANSLATIONS.kk = TRANSLATIONS.kz;
+
+let menuCategories = [];
+let allDishes = [];
+let cart = JSON.parse(localStorage.getItem('dar_res_cart') || '[]');
+let activeCategory = 'all';
+let searchQuery = '';
+
+function formatKZT(amount) {
+    return new Intl.NumberFormat('ru-RU').format(Math.round(amount)) + ' ₸';
+}
+
+function applyLanguage(lang) {
+    if (lang === 'kk') lang = 'kz';
+    if (!TRANSLATIONS[lang]) lang = 'ru';
+    activeLang = lang;
+    localStorage.setItem('dar_res_passenger_lang', lang);
+    localStorage.setItem('dar_res_lang', lang);
+    localStorage.setItem('dar_res_lang_v2', lang);
+
+    // Update active pill in header and mobile drawer
+    document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang || (btn.dataset.lang === 'kz' && lang === 'kk'));
+    });
+
+    const dict = TRANSLATIONS[lang];
+
+    // Translate data-i18n elements
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (dict[key]) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.placeholder = dict[key];
+            } else {
+                el.textContent = dict[key];
+            }
+        }
+    });
+
+    // Update category tabs
+    document.querySelectorAll('.cat-pill').forEach(btn => {
+        if (btn.dataset.cat === 'all') {
+            btn.textContent = dict.cat_all;
+        } else {
+            if (lang === 'kz' && btn.dataset.nameKz) btn.textContent = btn.dataset.nameKz;
+            else if (lang === 'en' && btn.dataset.nameEn) btn.textContent = btn.dataset.nameEn;
+            else if (btn.dataset.nameRu) btn.textContent = btn.dataset.nameRu;
+        }
+    });
+
+    // Update search placeholder
+    const sInput = document.getElementById('dishSearchInput');
+    if (sInput && dict.dish_search_placeholder) {
+        sInput.placeholder = dict.dish_search_placeholder;
+    }
+
+    // Update cart destination text
+    const destText = document.getElementById('cartDestinationText');
+    if (destText) {
+        destText.textContent = `${dict.cart_delivery_prefix} ${CURRENT_TRAIN}, ${dict.cart_wagon_prefix} ${CURRENT_WAGON}`;
+    }
+
+    renderMenu();
+    updateCartUI();
+}
+
+// Fetch Menu API
+async function loadMenu() {
+    try {
+        const res = await fetch('/api/menu');
+        const data = await res.json();
+        menuCategories = data.categories || [];
+        allDishes = [];
+        menuCategories.forEach(cat => {
+            (cat.items || []).forEach(item => {
+                allDishes.push({ ...item, categoryCode: cat.code });
+            });
+        });
+
+        // Себеттегі бағаларды ағымдағы мәзір бағасымен синхрондаймыз (ланчбокстар жалпы мәзірде жоқ — оларға тимейміз)
+        let cartChanged = false;
+        // Ланчбоксты (алдын ала тапсырыс) ескі нұсқада осы себетке түскен болуы мүмкін — алып тастаймыз
+        if (allDishes.length > 0) {
+            const before = cart.length;
+            for (let i = cart.length - 1; i >= 0; i--) {
+                if (!allDishes.some(d => d.id === cart[i].menu_item_id)) cart.splice(i, 1);
+            }
+            if (cart.length !== before) cartChanged = true;
+        }
+        cart.forEach(c => {
+            const dish = allDishes.find(d => d.id === c.menu_item_id);
+            if (!dish) return;
+            let price = dish.price;
+            if (c.variant_id) {
+                const v = (dish.variants || []).find(x => x.id === c.variant_id);
+                if (!v) return;
+                price = v.price;
+            }
+            if (c.unit_price !== price) { c.unit_price = price; cartChanged = true; }
+        });
+        if (cartChanged) saveCart();
+
+        renderMenu();
+        updateCartUI();
+    } catch (err) {
+        const grid = document.getElementById('dishesGrid');
+        if (grid) {
+            grid.innerHTML = `
+                <div class="menu-empty-state">
+                    <p>Қате / Ошибка загрузки меню. Пожалуйста, проверьте интернет.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+// Render Menu Cards
+function renderMenu() {
+    const grid = document.getElementById('dishesGrid');
+    if (!grid || allDishes.length === 0) return;
+
+    const filtered = allDishes.filter(item => {
+        const matchCat = activeCategory === 'all' || item.categoryCode === activeCategory;
+        if (!matchCat) return false;
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        const n_ru = (item.name_ru || '').toLowerCase();
+        const n_kz = (item.name_kz || '').toLowerCase();
+        const n_en = (item.name_en || '').toLowerCase();
+        const d_ru = (item.description_ru || '').toLowerCase();
+        const d_kz = (item.description_kz || '').toLowerCase();
+        const d_en = (item.description_en || '').toLowerCase();
+        const ing = (item.ingredients_ru || item.ingredients_kz || item.ingredients_en || '').toLowerCase();
+        return n_ru.includes(q) || n_kz.includes(q) || n_en.includes(q) ||
+               d_ru.includes(q) || d_kz.includes(q) || d_en.includes(q) || ing.includes(q);
+    });
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div class="menu-empty-state"><p>Бұл санатта тағамдар табылмады / Ничего не найдено</p></div>`;
+        return;
+    }
+
+    const dict = TRANSLATIONS[activeLang] || TRANSLATIONS.ru;
+
+    grid.innerHTML = filtered.map(item => {
+        const primaryName = activeLang === 'kz' ? (item.name_kz || item.name_ru) :
+                            activeLang === 'en' ? (item.name_en || item.name_ru) : item.name_ru;
+
+        let secondary = '';
+        if (activeLang === 'ru' && item.name_kz && item.name_kz !== item.name_ru) secondary = item.name_kz;
+        else if (activeLang === 'kz' && item.name_ru) secondary = item.name_ru;
+        else if (activeLang === 'en' && item.name_ru) secondary = item.name_ru;
+
+        const description = activeLang === 'kz' ? (item.description_kz || item.description_ru || '') :
+                            activeLang === 'en' ? (item.description_en || item.description_ru || '') : (item.description_ru || '');
+
+        const ingredients = activeLang === 'kz' ? (item.ingredients_kz || item.ingredients_ru || '') :
+                            activeLang === 'en' ? (item.ingredients_en || item.ingredients_ru || '') : (item.ingredients_ru || '');
+
+        const hasVariants = item.variants && item.variants.length > 0;
+        const isAvailable = item.is_available;
+        const imgSrc = item.image_url || '/static/assets/menu/placeholder_food.jpg';
+
+        return `
+            <article class="dish-card ${!isAvailable ? 'sold-out' : ''}" data-id="${item.id}">
+                <div class="dish-card-img-wrap">
+                    <img src="${imgSrc}" alt="${primaryName}" loading="lazy" onerror="this.onerror=null;this.src='/static/assets/menu/placeholder_food.jpg';" />
+                    ${!isAvailable ? `<span class="sold-out-badge">${dict.sold_out}</span>` : ''}
+                </div>
+                <div class="dish-card-body">
+                    <div class="dish-card-title-row">
+                        <h3 class="dish-name">${primaryName}</h3>
+                        <div class="dish-price">${formatKZT(item.price)}</div>
+                    </div>
+                    ${secondary ? `<div class="dish-sub-name">${secondary}</div>` : ''}
+                    ${description ? `<p class="dish-desc">${description}</p>` : ''}
+                    ${ingredients ? `<p class="dish-ingredients"><small><em>${ingredients}</em></small></p>` : ''}
+
+                    ${hasVariants ? `
+                        <div class="dish-variants-row">
+                            <label class="variant-label">${activeLang === 'kz' ? 'Көлемі / Размер:' : activeLang === 'en' ? 'Size / Option:' : 'Объем / Размер:'}</label>
+                            <select class="variant-select" data-dish-id="${item.id}" onchange="onVariantChange(this, ${item.id})">
+                                ${item.variants.map(v => {
+                                    const vName = activeLang === 'kz' ? (v.name_kz || v.name_ru) :
+                                                  activeLang === 'en' ? (v.name_en || v.name_ru) : v.name_ru;
+                                    return `
+                                        <option value="${v.id}" data-price="${v.price}" data-name-ru="${v.name_ru}" data-name-kz="${v.name_kz || v.name_ru}" data-name-en="${v.name_en || v.name_ru}">
+                                            ${vName} (${v.size}) — ${formatKZT(v.price)}
+                                        </option>
+                                    `;
+                                }).join('')}
+                            </select>
+                        </div>
+                    ` : ''}
+
+                    <div class="dish-card-footer">
+                        <span class="dish-weight-badge">${item.weight || ''}</span>
+                        ${isAvailable ? `
+                            <div class="dish-action-box">
+                                <div class="qty-counter">
+                                    <button type="button" class="qty-btn minus" onclick="stepQty(${item.id}, -1)">−</button>
+                                    <span class="qty-num" id="qtyDisplay_${item.id}">1</span>
+                                    <button type="button" class="qty-btn plus" onclick="stepQty(${item.id}, 1)">+</button>
+                                </div>
+                                <button type="button" class="btn-add-to-cart" onclick="addToCartFromCard(${item.id})">
+                                    ${dict.add_to_cart}
+                                </button>
+                            </div>
+                        ` : `
+                            <span class="sold-out-text">${dict.sold_out}</span>
+                        `}
+                    </div>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
+const dishQtyMap = {};
+function stepQty(itemId, delta) {
+    const curr = dishQtyMap[itemId] || 1;
+    const next = Math.max(1, curr + delta);
+    dishQtyMap[itemId] = next;
+    const el = document.getElementById(`qtyDisplay_${itemId}`);
+    if (el) el.textContent = next;
+}
+
+function onVariantChange(selectEl, itemId) {
+    const selectedOption = selectEl.options[selectEl.selectedIndex];
+    const price = selectedOption.dataset.price;
+    const card = document.querySelector(`.dish-card[data-id="${itemId}"]`);
+    if (card && price) {
+        card.querySelector('.dish-price').textContent = formatKZT(price);
+    }
+}
+
+function addToCartFromCard(itemId) {
+    const dish = allDishes.find(d => d.id === itemId);
+    if (!dish || !dish.is_available) return;
+
+    const qty = dishQtyMap[itemId] || 1;
+    let variantId = null;
+    let variantNameRu = '';
+    let variantNameKz = '';
+    let variantNameEn = '';
+    let unitPrice = dish.price;
+
+    const selectEl = document.querySelector(`.variant-select[data-dish-id="${itemId}"]`);
+    if (selectEl) {
+        const opt = selectEl.options[selectEl.selectedIndex];
+        variantId = parseInt(opt.value, 10);
+        variantNameRu = opt.dataset.nameRu || opt.dataset.name || '';
+        variantNameKz = opt.dataset.nameKz || variantNameRu;
+        variantNameEn = opt.dataset.nameEn || variantNameRu;
+        unitPrice = parseFloat(opt.dataset.price);
+    }
+
+    // Check if already in cart with same variant
+    const existing = cart.find(c => c.menu_item_id === itemId && c.variant_id === variantId);
+    if (existing) {
+        existing.quantity += qty;
+    } else {
+        cart.push({
+            menu_item_id: itemId,
+            name_ru: dish.name_ru,
+            name_kz: dish.name_kz || dish.name_ru,
+            name_en: dish.name_en || dish.name_ru,
+            variant_id: variantId,
+            variant_name_ru: variantNameRu,
+            variant_name_kz: variantNameKz,
+            variant_name_en: variantNameEn,
+            unit_price: unitPrice,
+            quantity: qty
+        });
+    }
+
+    saveCart();
+    updateCartUI();
+
+    const dishName = activeLang === 'kz' ? (dish.name_kz || dish.name_ru) :
+                     activeLang === 'en' ? (dish.name_en || dish.name_ru) : dish.name_ru;
+    const dict = TRANSLATIONS[activeLang] || TRANSLATIONS.ru;
+    showToast(`«${dishName}» ${dict.dish_added_toast}`);
+}
+
+function saveCart() {
+    localStorage.setItem('dar_res_cart', JSON.stringify(cart));
+}
+
+function updateCartUI() {
+    const dict = TRANSLATIONS[activeLang] || TRANSLATIONS.ru;
+    const totalCount = cart.reduce((acc, c) => acc + c.quantity, 0);
+    const subtotal = cart.reduce((acc, c) => acc + (c.unit_price * c.quantity), 0);
+    const serviceCharge = Math.round(subtotal * 0.10);
+    const grandTotal = subtotal + serviceCharge;
+
+    const countEl = document.getElementById('headerCartCount');
+    if (countEl) countEl.textContent = totalCount;
+
+    const floatQtyEl = document.getElementById('floatCartQty');
+    if (floatQtyEl) floatQtyEl.textContent = `${totalCount} ${dict.float_cart_dishes}`;
+
+    const floatSumEl = document.getElementById('floatCartSum');
+    if (floatSumEl) floatSumEl.textContent = formatKZT(grandTotal);
+
+    const floatBar = document.getElementById('floatingCartBar');
+    if (floatBar) {
+        floatBar.classList.toggle('visible', totalCount > 0);
+    }
+
+    const destText = document.getElementById('cartDestinationText');
+    if (destText) {
+        destText.textContent = `${dict.cart_delivery_prefix} ${CURRENT_TRAIN}, ${dict.cart_wagon_prefix} ${CURRENT_WAGON}`;
+    }
+
+    const listEl = document.getElementById('cartItemsList');
+    if (listEl) {
+        if (cart.length === 0) {
+            listEl.innerHTML = `
+                <div class="cart-empty-box">
+                    <p>${dict.cart_empty}</p>
+                    <button type="button" class="btn-secondary" onclick="closeCart()">${dict.cart_choose_dish}</button>
+                </div>
+            `;
+        } else {
+            listEl.innerHTML = cart.map((c, idx) => {
+                const refDish = allDishes.find(d => d.id === c.menu_item_id);
+                const nameRu = c.name_ru || (refDish ? refDish.name_ru : '');
+                const nameKz = c.name_kz || (refDish ? (refDish.name_kz || refDish.name_ru) : nameRu);
+                const nameEn = c.name_en || (refDish ? (refDish.name_en || refDish.name_ru) : nameRu);
+                const displayName = activeLang === 'kz' ? nameKz : (activeLang === 'en' ? nameEn : nameRu);
+
+                let varName = '';
+                if (c.variant_id) {
+                    if (activeLang === 'kz') varName = c.variant_name_kz || c.variant_name_ru || c.variant_name || '';
+                    else if (activeLang === 'en') varName = c.variant_name_en || c.variant_name_ru || c.variant_name || '';
+                    else varName = c.variant_name_ru || c.variant_name || '';
+                }
+
+                return `
+                    <div class="cart-item-row">
+                        <div class="cart-item-info">
+                            <strong class="cart-item-name">${displayName}</strong>
+                            ${varName ? `<span class="cart-item-var">${varName}</span>` : ''}
+                            <span class="cart-item-price">${formatKZT(c.unit_price)}</span>
+                        </div>
+                        <div class="cart-item-actions">
+                            <div class="cart-qty-ctrl">
+                                <button type="button" class="c-qty-btn" onclick="modifyCartQty(${idx}, -1)">−</button>
+                                <span class="c-qty-val">${c.quantity}</span>
+                                <button type="button" class="c-qty-btn" onclick="modifyCartQty(${idx}, 1)">+</button>
+                            </div>
+                            <span class="cart-line-total">${formatKZT(c.unit_price * c.quantity)}</span>
+                            <button type="button" class="cart-remove-btn" onclick="removeCartItem(${idx})" aria-label="Удалить">&times;</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    const subtotalEl = document.getElementById('cartSubtotalVal');
+    if (subtotalEl) subtotalEl.textContent = formatKZT(subtotal);
+
+    const serviceChargeEl = document.getElementById('cartServiceChargeVal');
+    if (serviceChargeEl) serviceChargeEl.textContent = formatKZT(serviceCharge);
+
+    const totalEl = document.getElementById('cartTotalVal');
+    if (totalEl) totalEl.textContent = formatKZT(grandTotal);
+
+    const proceedBtn = document.getElementById('proceedToCheckoutBtn');
+    if (proceedBtn) proceedBtn.disabled = cart.length === 0;
+}
+
+function modifyCartQty(idx, delta) {
+    if (!cart[idx]) return;
+    cart[idx].quantity += delta;
+    if (cart[idx].quantity <= 0) {
+        cart.splice(idx, 1);
+    }
+    saveCart();
+    updateCartUI();
+}
+
+function removeCartItem(idx) {
+    cart.splice(idx, 1);
+    saveCart();
+    updateCartUI();
+}
+
+document.getElementById('clearCartBtn').addEventListener('click', () => {
+    const dict = TRANSLATIONS[activeLang] || TRANSLATIONS.ru;
+    if (confirm(dict.clear_cart_confirm)) {
+        cart = [];
+        saveCart();
+        updateCartUI();
+    }
+});
+
+// Cart Drawer Controls
+const cartDrawer = document.getElementById('cartDrawer');
+const cartBackdrop = document.getElementById('cartBackdrop');
+
+function openCart() {
+    updateCartUI();
+    cartDrawer.classList.add('open');
+    cartBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCart() {
+    cartDrawer.classList.remove('open');
+    cartBackdrop.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+const headerCartBtn = document.getElementById('cartOpenBtn');
+if (headerCartBtn) headerCartBtn.addEventListener('click', openCart);
+const floatCartBar = document.getElementById('floatingCartBar');
+if (floatCartBar) floatCartBar.addEventListener('click', openCart);
+document.getElementById('cartCloseBtn').addEventListener('click', closeCart);
+cartBackdrop.addEventListener('click', closeCart);
+
+// Checkout Modal Controls
+const checkoutModal = document.getElementById('checkoutModal');
+const checkoutCloseBtn = document.getElementById('checkoutCloseBtn');
+const proceedToCheckoutBtn = document.getElementById('proceedToCheckoutBtn');
+
+proceedToCheckoutBtn.addEventListener('click', () => {
+    if (cart.length === 0) return;
+    closeCart();
+
+    const subtotal = cart.reduce((acc, c) => acc + (c.unit_price * c.quantity), 0);
+    const serviceCharge = Math.round(subtotal * 0.10);
+    const grandTotal = subtotal + serviceCharge;
+
+    const reviewBox = document.getElementById('checkoutReviewItems');
+    reviewBox.innerHTML = cart.map(c => {
+        const refDish = allDishes.find(d => d.id === c.menu_item_id);
+        const nameRu = c.name_ru || (refDish ? refDish.name_ru : '');
+        const nameKz = c.name_kz || (refDish ? (refDish.name_kz || refDish.name_ru) : nameRu);
+        const nameEn = c.name_en || (refDish ? (refDish.name_en || refDish.name_ru) : nameRu);
+        const displayName = activeLang === 'kz' ? nameKz : (activeLang === 'en' ? nameEn : nameRu);
+
+        let varName = '';
+        if (c.variant_id) {
+            if (activeLang === 'kz') varName = c.variant_name_kz || c.variant_name_ru || c.variant_name || '';
+            else if (activeLang === 'en') varName = c.variant_name_en || c.variant_name_ru || c.variant_name || '';
+            else varName = c.variant_name_ru || c.variant_name || '';
+        }
+
+        return `
+            <div class="review-row">
+                <span>${displayName} ${varName ? '(' + varName + ')' : ''} × ${c.quantity}</span>
+                <strong>${formatKZT(c.unit_price * c.quantity)}</strong>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById('checkoutReviewTotal').textContent = formatKZT(grandTotal);
+
+    checkoutModal.classList.add('open');
+    document.getElementById('orderSeatNo').focus();
+});
+
+checkoutCloseBtn.addEventListener('click', () => {
+    checkoutModal.classList.remove('open');
+});
+
+// Submit Order Form
+document.getElementById('orderForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('orderFormError');
+    const submitBtn = document.getElementById('submitOrderBtn');
+    const btnText = document.getElementById('submitBtnText');
+    const spinner = document.getElementById('submitSpinner');
+
+    errorDiv.style.display = 'none';
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    spinner.style.display = 'inline-block';
+
+    let idempotencyKey = localStorage.getItem('dar_res_idempotency_key');
+    if (!idempotencyKey) {
+        idempotencyKey = 'req_' + Math.random().toString(36).substring(2) + Date.now();
+        localStorage.setItem('dar_res_idempotency_key', idempotencyKey);
+    }
+
+    const payload = {
+        passenger_name: document.getElementById('orderPassengerName').value.trim(),
+        phone: document.getElementById('orderPhone').value.trim(),
+        train_no: document.getElementById('orderTrainNo').value.trim(),
+        wagon_no: document.getElementById('orderWagonNo').value.trim(),
+        seat_no: document.getElementById('orderSeatNo').value.trim(),
+        compartment_no: document.getElementById('orderCompNo').value.trim(),
+        comment: document.getElementById('orderComment').value.trim(),
+        idempotency_key: idempotencyKey,
+        items: cart.map(c => ({
+            menu_item_id: c.menu_item_id,
+            variant_id: c.variant_id,
+            quantity: c.quantity
+        }))
+    };
+
+    try {
+        const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Idempotency-Key': idempotencyKey
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            try {
+                const recent = JSON.parse(localStorage.getItem('dar_res_recent_orders') || '[]');
+                recent.unshift({
+                    order_number: data.order_number,
+                    public_uuid: data.public_uuid,
+                    train_no: payload.train_no,
+                    wagon_no: payload.wagon_no,
+                    seat_no: payload.seat_no,
+                    created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                });
+                localStorage.setItem('dar_res_recent_orders', JSON.stringify(recent.slice(0, 10)));
+            } catch (err) {}
+
+            cart = [];
+            saveCart();
+            localStorage.removeItem('dar_res_idempotency_key');
+            // Тапсырыс күйі беті ашылады; whatsapp_url болса, сол жерден WhatsApp (аспаз) автоматты ашылады
+            window.location.href = data.redirect_url + (data.whatsapp_url ? '?wa=1' : '');
+        } else {
+            errorDiv.textContent = data.detail || 'Қате / Ошибка при отправке заказа.';
+            errorDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline-block';
+            spinner.style.display = 'none';
+        }
+    } catch (err) {
+        errorDiv.textContent = 'Желі қатесі / Ошибка соединения. Проверьте интернет в поезде.';
+        errorDiv.style.display = 'block';
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline-block';
+        spinner.style.display = 'none';
+    }
+});
+
+// Category Filter Tabs
+document.querySelectorAll('.cat-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeCategory = btn.dataset.cat;
+        renderMenu();
+    });
+});
+
+// Dish Search
+document.getElementById('dishSearchInput').addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim();
+    renderMenu();
+});
+
+// Language buttons
+document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        applyLanguage(btn.dataset.lang);
+    });
+});
+
+// Mobile Navigation Drawer
+const mobileNavDrawer = document.getElementById('mobileNavDrawer');
+const mobileNavBackdrop = document.getElementById('mobileNavBackdrop');
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const mobileNavCloseBtn = document.getElementById('mobileNavCloseBtn');
+
+function openMobileNav() {
+    mobileNavDrawer.classList.add('open');
+    mobileNavBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMobileNav() {
+    mobileNavDrawer.classList.remove('open');
+    mobileNavBackdrop.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+hamburgerBtn.addEventListener('click', openMobileNav);
+mobileNavCloseBtn.addEventListener('click', closeMobileNav);
+mobileNavBackdrop.addEventListener('click', closeMobileNav);
+document.querySelectorAll('.mobile-nav-link').forEach(link => {
+    link.addEventListener('click', closeMobileNav);
+});
+
+// My Order Modal
+const myOrderModal = document.getElementById('myOrderModal');
+const myOrderCloseBtn = document.getElementById('myOrderCloseBtn');
+const myOrdersNavBtn = document.getElementById('myOrdersNavBtn');
+const mobileMyOrderBtn = document.getElementById('mobileMyOrderBtn');
+
+function openMyOrdersModal() {
+    closeMobileNav();
+    populateRecentOrders();
+    myOrderModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMyOrdersModal() {
+    myOrderModal.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+if (myOrdersNavBtn) myOrdersNavBtn.addEventListener('click', openMyOrdersModal);
+if (mobileMyOrderBtn) mobileMyOrderBtn.addEventListener('click', openMyOrdersModal);
+if (myOrderCloseBtn) myOrderCloseBtn.addEventListener('click', closeMyOrdersModal);
+
+function populateRecentOrders() {
+    const container = document.getElementById('recentOrdersContainer');
+    if (!container) return;
+
+    const orders = JSON.parse(localStorage.getItem('dar_res_recent_orders') || '[]');
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state-notice">
+                <p>Бұл құрылғыда соңғы тапсырыстар тарихы әлі жоқ.</p>
+                <small>Тапсырыс жасаған соң, оның күйі мен деректері осы жерде сақталады.</small>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = orders.map(ord => `
+        <div class="recent-order-pill">
+            <div class="ro-left">
+                <strong>№ ${ord.order_number}</strong>
+                <span>Поезд ${ord.train_no}, Вагон ${ord.wagon_no}, Место ${ord.seat_no}</span>
+                <small>${ord.created_at || ''}</small>
+            </div>
+            <a href="/order/${ord.public_uuid}" class="btn-check-status">Күйін көру / Проверить</a>
+        </div>
+    `).join('');
+}
+
+// Find order manually by input
+async function lookupManualOrder() {
+    const input = document.getElementById('manualOrderInput');
+    const val = input ? input.value.trim() : '';
+    if (!val) {
+        showToast('Тапсырыс нөмірін немесе кодын енгізіңіз');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/orders/${encodeURIComponent(val)}`);
+        if (res.ok) {
+            const data = await res.json();
+            window.location.href = `/order/${data.public_uuid}`;
+        } else {
+            showToast('Тапсырыс табылмады / Заказ не найден');
+        }
+    } catch (err) {
+        showToast('Іздеу барысында қате орын алды');
+    }
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 400);
+    }, 2500);
+}
+
+// Real-Time WebSocket Listener for Passenger View
+function setupWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    try {
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            const off = document.getElementById('offlineIndicator');
+            if (off) off.style.display = 'none';
+            setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+            }, 20000);
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.event === 'item_availability_update') {
+                    const dish = allDishes.find(d => d.id === msg.data.item_id);
+                    if (dish) {
+                        dish.is_available = msg.data.is_available;
+                        renderMenu();
+                    }
+                } else if (msg.event === 'menu_updated') {
+                    // Админ бағаны/мәзірді өзгертті — мәзірді жаңартамыз
+                    loadMenu();
+                } else if (msg.event === 'ordering_mode_update') {
+                    if (msg.data.ordering_mode === 'CLOSED') {
+                        window.location.reload();
+                    }
+                }
+            } catch (e) {}
+        };
+
+        ws.onclose = () => {
+            const off = document.getElementById('offlineIndicator');
+            if (off) off.style.display = 'block';
+            setTimeout(setupWebSocket, 4000);
+        };
+    } catch (e) {}
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+    applyLanguage(activeLang);
+    loadMenu();
+    setupWebSocket();
+    // Ланчбокс бетінен келгенде себет бірден ашылады (/menu?cart=1)
+    if (new URLSearchParams(window.location.search).get('cart') === '1') {
+        openCart();
+    }
+});
+</script>
+{% endblock %}

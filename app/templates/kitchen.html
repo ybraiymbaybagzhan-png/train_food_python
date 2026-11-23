@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+
+{% block title %}Асхана / Кухня поезда — DAR | RES group Kanban{% endblock %}
+
+{% block body_class %}kitchen-body{% endblock %}
+
+{% block content %}
+<!-- Kitchen Header Bar -->
+<header class="kitchen-header">
+    <div class="kitchen-header-left">
+        <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="kitchen-logo">
+        <div class="kitchen-title-box">
+            <h1 class="kitchen-main-title">Асхана / Кухня поезда</h1>
+            <span class="kitchen-station-badge">🚆 Онлайн-панель заказов</span>
+        </div>
+    </div>
+
+    <div class="kitchen-header-right">
+        <!-- Audio Notification Toggle -->
+        <button type="button" class="btn-audio-toggle" id="audioToggleBtn" title="Включить/выключить звук уведомлений">
+            <span id="audioIcon">🔔</span>
+            <span id="audioText">Звук: ВКЛ</span>
+        </button>
+
+        <!-- Availability Control Modal Button -->
+        <button type="button" class="btn-stock-toggle" id="stockModalOpenBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 7h-9M14 17H5M14 12H5"></path>
+                <circle cx="17" cy="17" r="3"></circle>
+                <circle cx="7" cy="7" r="3"></circle>
+            </svg>
+            <span>Наличие блюд (Стоп-лист)</span>
+        </button>
+
+        <!-- User info & Logout -->
+        <div class="kitchen-user-pill">
+            <span>{{ user.full_name or user.username }}</span>
+            <a href="/logout" class="btn-logout" title="Выйти">Выход</a>
+        </div>
+    </div>
+</header>
+
+<!-- Main Kanban Board -->
+<main class="kitchen-kanban-wrapper">
+    <div class="kanban-board-grid">
+        <!-- 1. NEW ORDERS -->
+        <div class="kanban-col col-new" data-status="NEW">
+            <div class="kanban-col-header">
+                <div class="col-title-wrap">
+                    <span class="status-indicator-dot dot-new"></span>
+                    <h2>ЖАҢА / НОВЫЕ</h2>
+                </div>
+                <span class="col-badge-count" id="count_NEW">0</span>
+            </div>
+            <div class="kanban-cards-tray" id="tray_NEW"></div>
+        </div>
+
+        <!-- 2. ACCEPTED -->
+        <div class="kanban-col col-accepted" data-status="ACCEPTED">
+            <div class="kanban-col-header">
+                <div class="col-title-wrap">
+                    <span class="status-indicator-dot dot-accepted"></span>
+                    <h2>ҚАБЫЛДАНДЫ / ПРИНЯТЫ</h2>
+                </div>
+                <span class="col-badge-count" id="count_ACCEPTED">0</span>
+            </div>
+            <div class="kanban-cards-tray" id="tray_ACCEPTED"></div>
+        </div>
+
+        <!-- 3. PREPARING -->
+        <div class="kanban-col col-preparing" data-status="PREPARING">
+            <div class="kanban-col-header">
+                <div class="col-title-wrap">
+                    <span class="status-indicator-dot dot-preparing"></span>
+                    <h2>ӘЗІРЛЕНУДЕ / ГОТОВЯТСЯ</h2>
+                </div>
+                <span class="col-badge-count" id="count_PREPARING">0</span>
+            </div>
+            <div class="kanban-cards-tray" id="tray_PREPARING"></div>
+        </div>
+
+        <!-- 4. READY -->
+        <div class="kanban-col col-ready" data-status="READY">
+            <div class="kanban-col-header">
+                <div class="col-title-wrap">
+                    <span class="status-indicator-dot dot-ready"></span>
+                    <h2>ДАЙЫН / ГОТОВЫ</h2>
+                </div>
+                <span class="col-badge-count" id="count_READY">0</span>
+            </div>
+            <div class="kanban-cards-tray" id="tray_READY"></div>
+        </div>
+
+        <!-- 5. OUT FOR DELIVERY -->
+        <div class="kanban-col col-delivery" data-status="OUT_FOR_DELIVERY">
+            <div class="kanban-col-header">
+                <div class="col-title-wrap">
+                    <span class="status-indicator-dot dot-delivery"></span>
+                    <h2>ЖОЛДА / В ДОСТАВКЕ</h2>
+                </div>
+                <span class="col-badge-count" id="count_OUT_FOR_DELIVERY">0</span>
+            </div>
+            <div class="kanban-cards-tray" id="tray_OUT_FOR_DELIVERY"></div>
+        </div>
+
+        <!-- 6. COMPLETED -->
+        <div class="kanban-col col-completed" data-status="DELIVERED">
+            <div class="kanban-col-header">
+                <div class="col-title-wrap">
+                    <span class="status-indicator-dot dot-completed"></span>
+                    <h2>ЖЕТКІЗІЛДІ / ЗАВЕРШЕНЫ</h2>
+                </div>
+                <span class="col-badge-count" id="count_DELIVERED">0</span>
+            </div>
+            <div class="kanban-cards-tray" id="tray_DELIVERED"></div>
+        </div>
+    </div>
+</main>
+
+<!-- Stock Management / Sold Out Modal -->
+<div class="modal-overlay" id="stockModal" role="dialog" aria-modal="true" aria-labelledby="stockTitle">
+    <div class="modal-card stock-modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title" id="stockTitle">Қолжетімділік / Стоп-лист (Наличие блюд)</h3>
+            <button type="button" class="btn-close-modal" id="stockModalCloseBtn">&times;</button>
+        </div>
+        <p class="modal-intro">
+            Егер өнім таусылса, сөндіріңіз. Барлық жолаушылардың қосымшасында тағам дереу <strong>SOLD OUT</strong> болып белгіленеді.
+        </p>
+
+        <div class="stock-search-box">
+            <input type="search" id="stockSearchInput" class="form-control" placeholder="Блюдо бойынша іздеу...">
+        </div>
+
+        <div class="stock-items-scroll-list" id="stockItemsList">
+            {% for item in menu_items %}
+            <div class="stock-row" data-name="{{ item.name_ru|lower }} {{ item.name_kz|lower }}">
+                <div class="stock-item-info">
+                    <strong>{{ item.name_ru }}</strong>
+                    <span class="stock-item-kz">{{ item.name_kz }}</span>
+                    <span class="stock-item-price">{{ "%.0f"|format(item.price) }} ₸</span>
+                </div>
+                <label class="switch-toggle" title="Переключить доступность">
+                    <input type="checkbox" class="stock-checkbox" data-id="{{ item.id }}" {% if item.is_available %}checked{% endif %} onchange="toggleItemStock({{ item.id }}, this.checked)">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initial Orders from Server
+const INITIAL_ACTIVE_ORDERS = [
+    {% for o in active_orders %}
+    {
+        id: {{ o.id }},
+        order_number: "{{ o.order_number }}",
+        public_uuid: "{{ o.public_uuid }}",
+        train_no: "{{ o.train_no }}",
+        wagon_no: "{{ o.wagon_no }}",
+        seat_no: "{{ o.seat_no }}",
+        compartment_no: "{{ o.compartment_no }}",
+        passenger_name: "{{ o.passenger_name }}",
+        phone: "{{ o.phone }}",
+        total: {{ o.total }},
+        status: "{{ o.status.value }}",
+        comment: "{{ o.comment }}",
+        created_at: "{{ o.created_at.strftime('%H:%M') }}",
+        order_type: "{{ o.order_type or 'ONBOARD' }}",
+        departure_at: "{{ departure_fmt(o) }}",
+        items: [
+            {% for oi in o.items %}
+            {
+                name: "{{ oi.item_name_snapshot }}",
+                variant: "{{ oi.variant_snapshot }}",
+                quantity: {{ oi.quantity }},
+                price: {{ oi.price_snapshot }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const INITIAL_COMPLETED_ORDERS = [
+    {% for o in completed_orders %}
+    {
+        id: {{ o.id }},
+        order_number: "{{ o.order_number }}",
+        public_uuid: "{{ o.public_uuid }}",
+        train_no: "{{ o.train_no }}",
+        wagon_no: "{{ o.wagon_no }}",
+        seat_no: "{{ o.seat_no }}",
+        passenger_name: "{{ o.passenger_name }}",
+        total: {{ o.total }},
+        status: "{{ o.status.value }}",
+        created_at: "{{ o.created_at.strftime('%H:%M') }}",
+        items: [
+            {% for oi in o.items %}
+            {
+                name: "{{ oi.item_name_snapshot }}",
+                quantity: {{ oi.quantity }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+let ordersStore = [...INITIAL_ACTIVE_ORDERS, ...INITIAL_COMPLETED_ORDERS];
+let audioEnabled = true;
+
+// Synthesized pleasant Web Audio chime for new orders
+function playNewOrderChime() {
+    if (!audioEnabled) return;
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.exponentialRampToValueAtTime(880.00, now + 0.12); // A5
+        osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.28); // D6
+        
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(now);
+        osc.stop(now + 0.7);
+    } catch (e) {}
+}
+
+document.getElementById('audioToggleBtn').addEventListener('click', () => {
+    audioEnabled = !audioEnabled;
+    document.getElementById('audioIcon').textContent = audioEnabled ? '🔔' : '🔕';
+    document.getElementById('audioText').textContent = audioEnabled ? 'Звук: ВКЛ' : 'Звук: ВЫКЛ';
+});
+
+function formatPrice(amt) {
+    return new Intl.NumberFormat('ru-RU').format(Math.round(amt)) + ' ₸';
+}
+
+function renderKanban() {
+    const statuses = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+    
+    statuses.forEach(st => {
+        const tray = document.getElementById(`tray_${st}`);
+        const countEl = document.getElementById(`count_${st}`);
+        const filtered = ordersStore.filter(o => o.status === st);
+        
+        if (countEl) countEl.textContent = filtered.length;
+        if (!tray) return;
+
+        if (filtered.length === 0) {
+            tray.innerHTML = `<div class="kanban-empty-col"><span>Тапсырыс жоқ / Пусто</span></div>`;
+        } else {
+            tray.innerHTML = filtered.map(order => renderOrderCard(order)).join('');
+        }
+    });
+}
+
+function renderOrderCard(order) {
+    let actionButtons = '';
+    if (order.status === 'NEW') {
+        actionButtons = `
+            <button type="button" class="k-btn k-btn-accept" onclick="changeStatus(${order.id}, 'ACCEPTED')">
+                ✓ ҚАБЫЛДАУ / ПРИНЯТЬ
+            </button>
+            <button type="button" class="k-btn k-btn-cancel" onclick="promptCancelOrder(${order.id})">
+                Отменить
+            </button>
+        `;
+    } else if (order.status === 'ACCEPTED') {
+        actionButtons = `
+            <button type="button" class="k-btn k-btn-prepare" onclick="changeStatus(${order.id}, 'PREPARING')">
+                🍳 ДАЙЫНДАУ / ГОТОВИТЬ
+            </button>
+            <button type="button" class="k-btn k-btn-cancel" onclick="promptCancelOrder(${order.id})">
+                Отменить
+            </button>
+        `;
+    } else if (order.status === 'PREPARING') {
+        actionButtons = `
+            <button type="button" class="k-btn k-btn-ready" onclick="changeStatus(${order.id}, 'READY')">
+                🛎️ ДАЙЫН / ГОТОВО
+            </button>
+        `;
+    } else if (order.status === 'READY') {
+        actionButtons = `
+            <button type="button" class="k-btn k-btn-send" onclick="changeStatus(${order.id}, 'OUT_FOR_DELIVERY')">
+                🚆 ЖӨНЕЛТУ / В ДОСТАВКУ
+            </button>
+        `;
+    }
+
+    return `
+        <div class="kitchen-card ${order.status === 'NEW' ? 'pulse-new' : ''}" id="kcard_${order.id}">
+            <div class="k-card-header">
+                <span class="k-order-no">#${order.order_number}</span>
+                <span class="k-order-time">${order.created_at || ''}</span>
+            </div>
+
+            <div class="k-card-destination">
+                <span class="k-dest-badge">Поезд № ${order.train_no}</span>
+                ${order.order_type === 'PREORDER' ? `<span class="k-dest-badge" style="background:#fff3d6;color:#8a5a00;">🍱 ПРЕДЗАКАЗ · отправление ${order.departure_at || '—'}</span>` : ''}
+                <strong class="k-dest-seat">${order.order_type === 'PREORDER' ? (order.wagon_no || order.seat_no ? `Вагон ${order.wagon_no || '—'}, Место ${order.seat_no || '—'}` : 'Вагон/место не указаны') : `Вагон ${order.wagon_no}, Место ${order.seat_no}`}</strong>
+                ${order.passenger_name ? `<span class="k-passenger">${order.passenger_name}</span>` : ''}
+            </div>
+
+            <div class="k-items-list">
+                ${order.items.map(item => `
+                    <div class="k-item-row">
+                        <strong class="k-qty">${item.quantity}×</strong>
+                        <span class="k-item-title">${item.name} ${item.variant ? '(' + item.variant + ')' : ''}</span>
+                    </div>
+                `).join('')}
+            </div>
+
+            ${order.comment ? `
+                <div class="k-comment-alert">
+                    ⚠️ <strong>Ескерту:</strong> ${order.comment}
+                </div>
+            ` : ''}
+
+            <div class="k-card-footer">
+                <span class="k-total">${formatPrice(order.total)}</span>
+                <div class="k-actions-tray">
+                    ${actionButtons}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function changeStatus(orderId, newStatus, cancelReason = '') {
+    try {
+        const res = await fetch(`/api/kitchen/orders/${orderId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_status: newStatus, cancel_reason: cancelReason })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const ord = ordersStore.find(o => o.id === orderId);
+            if (ord) ord.status = newStatus;
+            renderKanban();
+        } else {
+            alert(data.detail || 'Ошибка изменения статуса.');
+        }
+    } catch (err) {
+        alert('Ошибка связи с сервером.');
+    }
+}
+
+function promptCancelOrder(orderId) {
+    const reason = prompt('Тапсырысты тоқтату себебін жазыңыз / Укажите причину отмены:');
+    if (reason !== null) {
+        changeStatus(orderId, 'CANCELLED', reason.trim() || 'Отменено кухней');
+    }
+}
+
+// Stock / Sold out toggle
+async function toggleItemStock(itemId, isAvailable) {
+    try {
+        const res = await fetch(`/api/kitchen/menu-items/${itemId}/availability`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_available: isAvailable })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(`Статус обновлен: ${isAvailable ? 'В наличии' : 'Стоп-лист (Sold Out)'}`);
+        }
+    } catch (err) {
+        alert('Ошибка при обновлении наличия блюда.');
+    }
+}
+
+// Stock Modal controls
+const stockModal = document.getElementById('stockModal');
+document.getElementById('stockModalOpenBtn').addEventListener('click', () => {
+    stockModal.classList.add('open');
+});
+document.getElementById('stockModalCloseBtn').addEventListener('click', () => {
+    stockModal.classList.remove('open');
+});
+
+// Stock Search
+document.getElementById('stockSearchInput').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    document.querySelectorAll('.stock-row').forEach(row => {
+        const match = row.dataset.name.includes(q);
+        row.style.display = match ? 'flex' : 'none';
+    });
+});
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+}
+
+// Real-Time WebSocket Listener
+function connectKitchenWS() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/kitchen`);
+
+    ws.onmessage = (e) => {
+        try {
+            const msg = JSON.parse(e.data);
+            if (msg.event === 'new_order') {
+                // Prepend new order
+                ordersStore.unshift(msg.data);
+                playNewOrderChime();
+                showToast(`🔔 ЖАҢА ТАПСЫРЫС: #${msg.data.order_number} (${msg.data.order_type === 'PREORDER' ? 'ПРЕДЗАКАЗ, отправление ' + msg.data.departure_at : 'Вагон ' + msg.data.wagon_no + ', Орын ' + msg.data.seat_no})`);
+                renderKanban();
+            } else if (msg.event === 'order_status_update') {
+                const ord = ordersStore.find(o => o.id === msg.data.order_id);
+                if (ord) {
+                    ord.status = msg.data.new_status;
+                    renderKanban();
+                }
+            }
+        } catch (err) {}
+    };
+
+    ws.onclose = () => {
+        setTimeout(connectKitchenWS, 3000);
+    };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderKanban();
+    connectKitchenWS();
+});
+</script>
+{% endblock %}

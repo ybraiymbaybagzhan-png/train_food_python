@@ -1,0 +1,658 @@
+{% extends "base.html" %}
+
+{% block title %}Мәзір басқару / Управление меню — DAR | RES group Admin{% endblock %}
+
+{% block content %}
+<style>
+    .mi-thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; background: #eee; display: block; }
+    .menu-item-row.row-archived { opacity: 0.55; background: #fafafa; }
+    .price-input.dirty { border-color: #e0a100; background: #fff8e1; }
+    .btn-price-save.dirty { background: #1C3155; color: #fff; }
+    .mi-tag { display: inline-block; font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; background: #eef1f6; color: #1C3155; margin-top: 4px; }
+    .mi-tag.lunch { background: #fff3d6; color: #8a5a00; }
+    .mi-tag.arch { background: #fdecea; color: #c0392b; }
+    .mi-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .mi-actions button { padding: 6px 12px; font-size: 0.8rem; }
+    .menu-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
+    .menu-toolbar .form-control { max-width: 280px; }
+    .item-modal-card { max-width: 760px; max-height: 92vh; overflow-y: auto; }
+    .img-upload-row { display: flex; gap: 14px; align-items: center; }
+    .img-preview { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; background: #eee; flex: 0 0 auto; }
+    .form-section-title { margin: 18px 0 8px; font-size: 0.95rem; color: #1C3155; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    .variant-row { display: grid; grid-template-columns: 1.4fr 1fr 0.9fr auto auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .variant-row .form-control { padding: 6px 8px; }
+    .variant-add-row { background: #f6f7f9; padding: 10px; border-radius: 8px; }
+    .cat-edit-row { display: grid; grid-template-columns: 1.2fr 1.2fr 1.2fr 70px auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .cat-edit-row .form-control { padding: 6px 8px; }
+    .cat-code { font-size: 0.72rem; color: #888; grid-column: 1 / -1; margin-top: -4px; }
+    @media (max-width: 720px) {
+        .variant-row, .cat-edit-row { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+
+<header class="admin-header">
+    <div class="container header-inner">
+        <div class="admin-brand">
+            <img src="{{ url_for('static', path='assets/dar_res_logo.jpeg') }}" alt="DAR | RES group" class="admin-logo">
+            <div class="admin-title-box">
+                <h1>Мәзір & Бағалар / Меню и цены</h1>
+                <span class="admin-badge">Full Menu & Category Manager</span>
+            </div>
+        </div>
+        <nav class="admin-nav">
+            <a href="/admin" class="admin-nav-link">Басты / Главная</a>
+            <a href="/admin/orders" class="admin-nav-link">Тапсырыстар / Заказы</a>
+            <a href="/admin/menu" class="admin-nav-link active">Мәзір & Бағалар</a>
+            <a href="/admin/trains" class="admin-nav-link">Пойыздар / Поезда</a>
+            <a href="/admin/qr" class="admin-nav-link">QR-кодтар</a>
+            <a href="/admin/users" class="admin-nav-link">Қызметкерлер / Пользователи</a>
+            <a href="/admin/reports" class="admin-nav-link">Есептер / Отчеты</a>
+            <a href="/logout" class="btn-logout" style="margin-left: 14px;">Выход</a>
+        </nav>
+    </div>
+</header>
+
+<main class="admin-main">
+    <div class="container">
+        <div class="table-header-row" style="margin-bottom: 24px;">
+            <div>
+                <h2>Мейрамхана және бар тағамдары (<span id="visibleCount">{{ items|selectattr('is_active')|list|length }}</span> позиций)</h2>
+                <p style="color: var(--color-warm-gray); font-size: 0.9rem;">
+                    Баға мен қолжетімділік өзгергенде жолаушылардың мәзірі автоматты түрде жаңарады.
+                    Бағаны өзгертіп, <strong>Enter</strong> басыңыз немесе «Сақтау» батырмасын басыңыз.
+                </p>
+            </div>
+            <div class="admin-actions-group">
+                <button type="button" class="btn-secondary" onclick="openCategoriesModal()">📁 Санаттар / Категории</button>
+                <button type="button" class="btn-primary" onclick="openCreateItemModal()">+ Жаңа тағам қосу / Добавить блюдо</button>
+            </div>
+        </div>
+
+        <div class="menu-toolbar">
+            <input type="search" id="menuItemFilter" class="form-control" placeholder="Тағам немесе санат бойынша іздеу...">
+            <select id="menuCategoryFilter" class="form-control">
+                <option value="">Барлық санаттар / Все категории</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name_ru }}{% if not cat.is_active %} (өшірулі){% endif %}</option>
+                {% endfor %}
+            </select>
+            <label style="display:flex; gap:6px; align-items:center; font-size:0.9rem;">
+                <input type="checkbox" id="showArchived"> Архивтегілерді көрсету / Показать архив
+            </label>
+        </div>
+
+        <div class="table-responsive">
+            <table class="admin-data-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Категория</th>
+                        <th>Название (RU / KZ / EN)</th>
+                        <th>Выход / Вес</th>
+                        <th>Цена (₸)</th>
+                        <th>Доступность</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    {% set is_lunch = item.category.code == lunchbox_code %}
+                    <tr class="menu-item-row{% if not item.is_active %} row-archived{% endif %}"
+                        id="itemRow_{{ item.id }}"
+                        data-id="{{ item.id }}"
+                        data-name="{{ (item.name_ru ~ ' ' ~ item.name_kz ~ ' ' ~ item.name_en ~ ' ' ~ item.category.name_ru ~ ' ' ~ item.sku)|lower }}"
+                        data-title="{{ item.name_ru }}"
+                        data-cat="{{ item.category_id }}"
+                        data-active="{{ 1 if item.is_active else 0 }}"
+                        {% if not item.is_active %}style="display:none;"{% endif %}>
+                        <td><img class="mi-thumb" src="{{ item.image_url or '/static/assets/menu/placeholder_food.jpg' }}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/static/assets/menu/placeholder_food.jpg';"></td>
+                        <td>
+                            <span class="category-tag">{{ item.category.name_ru }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ item.name_ru }}</strong>{% if item.is_popular %} ⭐{% endif %}<br>
+                            <small style="color: var(--color-warm-gray);">{{ item.name_kz }} • {{ item.name_en }}</small>
+                            {% if item.sku %}<br><small style="color:#999;">{{ item.sku }}</small>{% endif %}
+                            {% if is_lunch %}<br><span class="mi-tag lunch">🍱 Ланчбокс — құрамы lunchbox_data.py ішінде, бағасын осында қойыңыз</span>{% endif %}
+                            {% if not item.is_active %}<br><span class="mi-tag arch">Архив</span>{% endif %}
+                        </td>
+                        <td>{{ item.weight_value or item.volume_value or '—' }}</td>
+                        <td>
+                            <input type="number" min="0" step="10" class="form-control price-input"
+                                   id="priceInput_{{ item.id }}" data-orig="{{ '%.0f'|format(item.price) }}"
+                                   value="{{ '%.0f'|format(item.price) }}" style="width: 120px;"
+                                   oninput="markPriceDirty({{ item.id }})" onkeydown="if(event.key==='Enter'){savePrice({{ item.id }});}">
+                            {% if item.variants|length > 0 %}
+                            <div><span class="mi-tag">{{ item.variants|length }} өлшем нұсқасы — бағасы нұсқаларда (✎)</span></div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <label class="switch-toggle" title="В наличии / Стоп-лист">
+                                <input type="checkbox" id="availToggle_{{ item.id }}" {% if item.is_available %}checked{% endif %}
+                                       onchange="toggleItemAvailability({{ item.id }}, this)">
+                                <span class="slider round"></span>
+                            </label>
+                        </td>
+                        <td>
+                            <div class="mi-actions">
+                                <button type="button" class="btn-secondary btn-price-save" id="priceBtn_{{ item.id }}" onclick="savePrice({{ item.id }})">Сақтау</button>
+                                <button type="button" class="btn-secondary" onclick="openEditItemModal({{ item.id }})">✎ Өзгерту</button>
+                                {% if item.is_active %}
+                                <button type="button" class="btn-cancel-sm" onclick="toggleArchive({{ item.id }}, false)">Архив</button>
+                                {% else %}
+                                <button type="button" class="btn-secondary" onclick="toggleArchive({{ item.id }}, true)">Қалпына келтіру</button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<!-- Modal: Create / Edit Menu Item -->
+<div class="modal-overlay" id="itemModal" role="dialog" aria-modal="true">
+    <div class="modal-card item-modal-card">
+        <div class="modal-header">
+            <h3 id="itemModalTitle">Жаңа тағам қосу</h3>
+            <button type="button" class="btn-close-modal" onclick="closeItemModal()">&times;</button>
+        </div>
+        <form id="itemForm" style="padding: 20px;">
+            <input type="hidden" id="fItemId" value="">
+
+            <div class="form-row-grid">
+                <div class="form-group">
+                    <label class="form-label required" for="fCategory">Санат / Категория</label>
+                    <select id="fCategory" class="form-control" required>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" data-lunch="{{ 1 if cat.code == lunchbox_code else 0 }}">{{ cat.name_ru }} ({{ cat.name_kz }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required" for="fPrice">Бағасы (₸)</label>
+                    <input type="number" id="fPrice" class="form-control" required min="0" step="10" placeholder="Мысалы: 2200">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required" for="fNameRu">Название (RU)</label>
+                <input type="text" id="fNameRu" class="form-control" required maxlength="160" placeholder="Мысалы: Плов по-казахски">
+            </div>
+            <div class="form-row-grid">
+                <div class="form-group">
+                    <label class="form-label" for="fNameKz">Атауы (KZ)</label>
+                    <input type="text" id="fNameKz" class="form-control" maxlength="160" placeholder="Бос болса, RU алынады">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="fNameEn">Name (EN)</label>
+                    <input type="text" id="fNameEn" class="form-control" maxlength="160" placeholder="Empty = RU name">
+                </div>
+            </div>
+
+            <div class="form-row-grid">
+                <div class="form-group">
+                    <label class="form-label" for="fWeight">Салмағы / Выход</label>
+                    <input type="text" id="fWeight" class="form-control" maxlength="50" placeholder="300 g">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="fVolume">Көлемі / Объём</label>
+                    <input type="text" id="fVolume" class="form-control" maxlength="50" placeholder="0.5 L">
+                </div>
+            </div>
+
+            <div class="form-section-title">Сурет / Фото</div>
+            <div class="img-upload-row">
+                <img id="fImagePreview" class="img-preview" src="/static/assets/menu/placeholder_food.jpg" alt="">
+                <div style="flex:1;">
+                    <input type="file" id="fImageFile" accept="image/jpeg,image/png,image/webp" class="form-control">
+                    <small style="color: var(--color-warm-gray);">JPG / PNG / WEBP, 5 МБ-қа дейін. Таңдаған бойда жүктеледі.</small>
+                    <input type="text" id="fImageUrl" class="form-control" style="margin-top:6px;" placeholder="немесе сурет сілтемесі: /static/assets/...">
+                </div>
+            </div>
+
+            <div class="form-section-title">Сипаттама / Описание</div>
+            <div class="form-group"><label class="form-label" for="fDescRu">RU</label><textarea id="fDescRu" class="form-control" rows="2"></textarea></div>
+            <div class="form-row-grid">
+                <div class="form-group"><label class="form-label" for="fDescKz">KZ</label><textarea id="fDescKz" class="form-control" rows="2"></textarea></div>
+                <div class="form-group"><label class="form-label" for="fDescEn">EN</label><textarea id="fDescEn" class="form-control" rows="2"></textarea></div>
+            </div>
+
+            <div class="form-section-title">Құрамы / Ингредиенты</div>
+            <div class="form-group"><label class="form-label" for="fIngRu">RU</label><textarea id="fIngRu" class="form-control" rows="2" placeholder="говядина, рис, морковь, лук..."></textarea></div>
+            <div class="form-row-grid">
+                <div class="form-group"><label class="form-label" for="fIngKz">KZ</label><textarea id="fIngKz" class="form-control" rows="2"></textarea></div>
+                <div class="form-group"><label class="form-label" for="fIngEn">EN</label><textarea id="fIngEn" class="form-control" rows="2"></textarea></div>
+            </div>
+
+            <div style="display:flex; gap:24px; margin-top:6px;">
+                <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="fAvailable" checked> Қолжетімді / В наличии</label>
+                <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="fPopular"> ⭐ Танымал / Популярное</label>
+            </div>
+
+            <button type="submit" class="btn-primary" id="itemSaveBtn" style="width: 100%; margin-top: 18px;">Сақтау / Сохранить</button>
+
+            <!-- Өлшем нұсқалары (тек өңдеу режимінде) -->
+            <div id="variantsSection" style="display:none;">
+                <div class="form-section-title">Өлшем / көлем нұсқалары (әрқайсысының өз бағасы бар)</div>
+                <div id="variantsList"></div>
+                <div class="variant-add-row">
+                    <div class="variant-row" style="margin-bottom:0;">
+                        <input type="text" id="vNewName" class="form-control" placeholder="Атауы (мысалы: Үлкен)">
+                        <input type="text" id="vNewVolume" class="form-control" placeholder="Көлемі (400 мл)">
+                        <input type="number" id="vNewPrice" class="form-control" min="0" step="10" placeholder="Баға ₸">
+                        <button type="button" class="btn-primary" style="padding:6px 12px;" onclick="addVariant()">+ Қосу</button>
+                    </div>
+                    <small style="color: var(--color-warm-gray);">Нұсқа қосылса, жолаушы мәзірінде өлшем таңдайды және нұсқаның бағасы қолданылады.</small>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Categories Management -->
+<div class="modal-overlay" id="categoriesModal" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-width: 820px; max-height: 92vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h3>Мәзір санаттары / Категории меню</h3>
+            <button type="button" class="btn-close-modal" onclick="closeCategoriesModal()">&times;</button>
+        </div>
+        <div style="padding: 20px;">
+            <div>
+                {% for cat in categories %}
+                <div class="cat-edit-row" id="catRow_{{ cat.id }}">
+                    <input type="text" class="form-control" id="catRu_{{ cat.id }}" value="{{ cat.name_ru }}" placeholder="RU" title="RU">
+                    <input type="text" class="form-control" id="catKz_{{ cat.id }}" value="{{ cat.name_kz }}" placeholder="KZ" title="KZ">
+                    <input type="text" class="form-control" id="catEn_{{ cat.id }}" value="{{ cat.name_en }}" placeholder="EN" title="EN">
+                    <input type="number" class="form-control" id="catSort_{{ cat.id }}" value="{{ cat.sort_order }}" title="Реті / Порядок">
+                    <label style="display:flex; gap:4px; align-items:center; font-size:0.8rem;" title="Мәзірде көрсету">
+                        <input type="checkbox" id="catActive_{{ cat.id }}" {% if cat.is_active %}checked{% endif %}> Белсенді
+                    </label>
+                    <button type="button" class="btn-secondary" style="padding:6px 12px; font-size:0.8rem;" onclick="saveCategory({{ cat.id }})">Сақтау</button>
+                    <div class="cat-code">Код: {{ cat.code }}{% if cat.code == lunchbox_code %} · ланчбоксы жеке бетте (/lunchboxes){% endif %}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h4 style="margin: 22px 0 10px; font-size: 1rem; color: #1C3155;">+ Жаңа санат қосу / Добавить категорию</h4>
+            <form id="createCategoryForm">
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label class="form-label required" for="newCatCode">Код (латиница)</label>
+                        <input type="text" id="newCatCode" class="form-control" required pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*" placeholder="desserts">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required" for="newCatNameRu">Название RU</label>
+                        <input type="text" id="newCatNameRu" class="form-control" required placeholder="Десерты">
+                    </div>
+                </div>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="newCatNameKz">Атауы KZ</label>
+                        <input type="text" id="newCatNameKz" class="form-control" placeholder="Тәттілер">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="newCatNameEn">Name EN</label>
+                        <input type="text" id="newCatNameEn" class="form-control" placeholder="Desserts">
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Санатты сақтау / Создать категорию</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LUNCHBOX_CODE = {{ lunchbox_code | tojson }};
+const PLACEHOLDER_IMG = '/static/assets/menu/placeholder_food.jpg';
+let menuNeedsReload = false;
+
+/* ---------- helpers ---------- */
+function esc(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function errText(data) {
+    if (!data) return 'Ошибка.';
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.detail)) return data.detail.map(d => d.msg).join('; ');
+    return 'Ошибка.';
+}
+
+async function api(method, url, body) {
+    try {
+        const opts = { method: method, headers: {} };
+        if (body instanceof FormData) {
+            opts.body = body;
+        } else if (body !== undefined) {
+            opts.headers['Content-Type'] = 'application/json';
+            opts.body = JSON.stringify(body);
+        }
+        const res = await fetch(url, opts);
+        let data = {};
+        try { data = await res.json(); } catch (e) {}
+        if (res.status === 401) {
+            data = { detail: 'Сессия аяқталды, қайта кіріңіз / Сессия истекла, войдите заново.' };
+        }
+        return { ok: res.ok && data.success !== false, status: res.status, data: data };
+    } catch (e) {
+        return { ok: false, status: 0, data: { detail: 'Ошибка связи с сервером.' } };
+    }
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    if (!container) { return; }
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 2800);
+}
+
+function el(id) { return document.getElementById(id); }
+
+/* ---------- table filters ---------- */
+function applyFilters() {
+    const q = el('menuItemFilter').value.toLowerCase().trim();
+    const cat = el('menuCategoryFilter').value;
+    const showArchived = el('showArchived').checked;
+    let visible = 0;
+    document.querySelectorAll('.menu-item-row').forEach(row => {
+        const active = row.dataset.active === '1';
+        const match = row.dataset.name.includes(q)
+            && (!cat || row.dataset.cat === cat)
+            && (active || showArchived);
+        row.style.display = match ? '' : 'none';
+        if (match && active) visible += 1;
+    });
+    el('visibleCount').textContent = visible;
+}
+el('menuItemFilter').addEventListener('input', applyFilters);
+el('menuCategoryFilter').addEventListener('change', applyFilters);
+el('showArchived').addEventListener('change', applyFilters);
+
+/* ---------- price / availability / archive (table) ---------- */
+function markPriceDirty(itemId) {
+    const input = el('priceInput_' + itemId);
+    const dirty = input.value !== input.dataset.orig;
+    input.classList.toggle('dirty', dirty);
+    el('priceBtn_' + itemId).classList.toggle('dirty', dirty);
+}
+
+async function savePrice(itemId) {
+    const input = el('priceInput_' + itemId);
+    const priceVal = parseFloat(input.value);
+    if (isNaN(priceVal) || priceVal < 0) {
+        alert('Некорректная цена / Баға дұрыс емес');
+        return;
+    }
+    const r = await api('PATCH', '/api/admin/menu-items/' + itemId + '/price', { price: priceVal });
+    if (!r.ok) { alert(errText(r.data)); return; }
+    input.dataset.orig = String(Math.round(r.data.new_price));
+    input.value = input.dataset.orig;
+    markPriceDirty(itemId);
+    const toggle = el('availToggle_' + itemId);
+    if (toggle && r.data.is_available !== undefined) toggle.checked = r.data.is_available;
+    showToast(r.data.lunchbox_enabled
+        ? '✓ Баға сақталды, ланчбокс қолжетімді болды / Цена сохранена, ланчбокс включён'
+        : '✓ Баға сақталды / Цена сохранена');
+}
+
+async function toggleItemAvailability(itemId, checkbox) {
+    const wanted = checkbox.checked;
+    const r = await api('PATCH', '/api/kitchen/menu-items/' + itemId + '/availability', { is_available: wanted });
+    if (!r.ok) {
+        checkbox.checked = !wanted;
+        alert(errText(r.data));
+        return;
+    }
+    showToast('Статус: ' + (wanted ? 'В наличии' : 'Стоп-лист'));
+}
+
+async function toggleArchive(itemId, restore) {
+    const row = el('itemRow_' + itemId);
+    const title = row ? row.dataset.title : '';
+    const msg = restore
+        ? '«' + title + '» қалпына келтіру керек пе? / Восстановить блюдо?'
+        : '«' + title + '» тағамын архивтеу керек пе? Жолаушы мәзірінен жоғалады. / Архивировать блюдо?';
+    if (!confirm(msg)) return;
+    const r = restore
+        ? await api('PATCH', '/api/admin/menu/items/' + itemId, { is_active: true })
+        : await api('DELETE', '/api/admin/menu/items/' + itemId);
+    if (!r.ok) { alert(errText(r.data)); return; }
+    window.location.reload();
+}
+
+/* ---------- item modal (create / edit) ---------- */
+function setImagePreview(url) {
+    el('fImagePreview').src = url || PLACEHOLDER_IMG;
+}
+
+function configureCategorySelect(isCreate, currentCategoryId) {
+    const select = el('fCategory');
+    let firstEnabled = null;
+    Array.from(select.options).forEach(opt => {
+        const isLunch = opt.dataset.lunch === '1';
+        // жаңа тағамды ланчбокс санатына қосуға болмайды; ланчбоксты басқа санатқа да көшіруге болмайды
+        opt.disabled = isLunch ? isCreate : false;
+        if (!opt.disabled && firstEnabled === null) firstEnabled = opt.value;
+    });
+    if (!isCreate) {
+        const current = select.querySelector('option[value="' + currentCategoryId + '"]');
+        const lockedToLunch = current && current.dataset.lunch === '1';
+        select.value = String(currentCategoryId);
+        select.disabled = !!lockedToLunch;
+        if (!lockedToLunch) {
+            Array.from(select.options).forEach(opt => { if (opt.dataset.lunch === '1') opt.disabled = true; });
+        }
+    } else {
+        select.disabled = false;
+        select.value = firstEnabled;
+    }
+}
+
+function fillItemForm(item) {
+    el('fItemId').value = item ? item.id : '';
+    el('fPrice').value = item ? Math.round(item.price) : '';
+    el('fNameRu').value = item ? item.name_ru : '';
+    el('fNameKz').value = item ? item.name_kz : '';
+    el('fNameEn').value = item ? item.name_en : '';
+    el('fWeight').value = item ? item.weight_value : '';
+    el('fVolume').value = item ? item.volume_value : '';
+    el('fImageUrl').value = item ? item.image_url : '';
+    el('fImageFile').value = '';
+    setImagePreview(item ? item.image_url : '');
+    el('fDescRu').value = item ? item.description_ru : '';
+    el('fDescKz').value = item ? item.description_kz : '';
+    el('fDescEn').value = item ? item.description_en : '';
+    el('fIngRu').value = item ? item.ingredients_ru : '';
+    el('fIngKz').value = item ? item.ingredients_kz : '';
+    el('fIngEn').value = item ? item.ingredients_en : '';
+    el('fAvailable').checked = item ? !!item.is_available : true;
+    el('fPopular').checked = item ? !!item.is_popular : false;
+}
+
+function openCreateItemModal() {
+    el('itemModalTitle').textContent = 'Жаңа тағам қосу / Новое блюдо';
+    fillItemForm(null);
+    configureCategorySelect(true, null);
+    el('variantsSection').style.display = 'none';
+    el('itemModal').classList.add('open');
+    el('fNameRu').focus();
+}
+
+async function openEditItemModal(itemId) {
+    const r = await api('GET', '/api/admin/menu/items/' + itemId);
+    if (!r.ok && !r.data.id) { alert(errText(r.data)); return; }
+    const item = r.data;
+    el('itemModalTitle').textContent = 'Өзгерту: ' + item.name_ru;
+    fillItemForm(item);
+    configureCategorySelect(false, item.category_id);
+    renderVariants(item);
+    el('variantsSection').style.display = 'block';
+    el('itemModal').classList.add('open');
+}
+
+function closeItemModal() {
+    el('itemModal').classList.remove('open');
+    if (menuNeedsReload) window.location.reload();
+}
+
+el('fImageUrl').addEventListener('input', () => setImagePreview(el('fImageUrl').value.trim()));
+
+el('fImageFile').addEventListener('change', async function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('Файл 5 МБ-тан үлкен / Файл больше 5 МБ'); this.value = ''; return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await api('POST', '/api/admin/menu/upload-image', fd);
+    if (!r.ok) { alert(errText(r.data)); this.value = ''; return; }
+    el('fImageUrl').value = r.data.url;
+    setImagePreview(r.data.url);
+    showToast('✓ Сурет жүктелді / Фото загружено');
+});
+
+el('itemForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const itemId = el('fItemId').value;
+    const priceVal = parseFloat(el('fPrice').value);
+    if (isNaN(priceVal) || priceVal < 0) { alert('Некорректная цена / Баға дұрыс емес'); return; }
+
+    const payload = {
+        category_id: parseInt(el('fCategory').value, 10),
+        name_ru: el('fNameRu').value.trim(),
+        name_kz: el('fNameKz').value.trim(),
+        name_en: el('fNameEn').value.trim(),
+        price: priceVal,
+        weight_value: el('fWeight').value.trim(),
+        volume_value: el('fVolume').value.trim(),
+        image_url: el('fImageUrl').value.trim(),
+        description_ru: el('fDescRu').value.trim(),
+        description_kz: el('fDescKz').value.trim(),
+        description_en: el('fDescEn').value.trim(),
+        ingredients_ru: el('fIngRu').value.trim(),
+        ingredients_kz: el('fIngKz').value.trim(),
+        ingredients_en: el('fIngEn').value.trim(),
+        is_available: el('fAvailable').checked,
+        is_popular: el('fPopular').checked
+    };
+    if (!payload.name_ru) { alert('Название (RU) міндетті'); return; }
+
+    const btn = el('itemSaveBtn');
+    btn.disabled = true;
+    const r = itemId
+        ? await api('PATCH', '/api/admin/menu/items/' + itemId, payload)
+        : await api('POST', '/api/admin/menu/items', payload);
+    btn.disabled = false;
+    if (!r.ok) { alert(errText(r.data)); return; }
+    window.location.reload();
+});
+
+/* ---------- variants ---------- */
+function renderVariants(item) {
+    const list = el('variantsList');
+    if (!item.variants.length) {
+        list.innerHTML = '<p style="color:#888; font-size:0.85rem; margin:0 0 8px;">Нұсқалар жоқ — тағам бір бағамен сатылады.</p>';
+        return;
+    }
+    list.innerHTML = item.variants.map(v => `
+        <div class="variant-row" data-variant-id="${v.id}">
+            <input type="text" class="form-control v-name" value="${esc(v.name_ru)}" placeholder="Атауы">
+            <input type="text" class="form-control v-volume" value="${esc(v.volume_or_weight)}" placeholder="Көлемі">
+            <input type="number" class="form-control v-price" value="${Math.round(v.price)}" min="0" step="10">
+            <label title="Қолжетімді" style="display:flex; gap:4px; align-items:center; font-size:0.8rem;">
+                <input type="checkbox" class="v-avail" ${v.is_available ? 'checked' : ''}> бар
+            </label>
+            <button type="button" class="btn-secondary" style="padding:6px 10px;" onclick="saveVariant(${v.id}, this)">Сақтау</button>
+            <button type="button" class="btn-cancel-sm" onclick="deleteVariant(${v.id})">✕</button>
+        </div>
+    `).join('');
+}
+
+async function reloadVariants() {
+    const itemId = el('fItemId').value;
+    const r = await api('GET', '/api/admin/menu/items/' + itemId);
+    if (r.data && r.data.variants) renderVariants(r.data);
+    menuNeedsReload = true;
+}
+
+async function saveVariant(variantId, btn) {
+    const row = btn.closest('.variant-row');
+    const price = parseFloat(row.querySelector('.v-price').value);
+    if (isNaN(price) || price < 0) { alert('Некорректная цена'); return; }
+    const r = await api('PATCH', '/api/admin/menu/variants/' + variantId, {
+        name_ru: row.querySelector('.v-name').value.trim(),
+        volume_or_weight: row.querySelector('.v-volume').value.trim(),
+        price: price,
+        is_available: row.querySelector('.v-avail').checked
+    });
+    if (!r.ok) { alert(errText(r.data)); return; }
+    showToast('✓ Нұсқа сақталды / Вариант сохранён');
+    menuNeedsReload = true;
+}
+
+async function deleteVariant(variantId) {
+    if (!confirm('Бұл нұсқаны жою керек пе? / Удалить вариант?')) return;
+    const r = await api('DELETE', '/api/admin/menu/variants/' + variantId);
+    if (!r.ok) { alert(errText(r.data)); return; }
+    await reloadVariants();
+}
+
+async function addVariant() {
+    const itemId = el('fItemId').value;
+    const name = el('vNewName').value.trim();
+    const volume = el('vNewVolume').value.trim();
+    const price = parseFloat(el('vNewPrice').value);
+    if (!name || !volume || isNaN(price) || price < 0) {
+        alert('Атауын, көлемін және бағасын толтырыңыз / Заполните название, объём и цену');
+        return;
+    }
+    const r = await api('POST', '/api/admin/menu/items/' + itemId + '/variants', {
+        name_ru: name, volume_or_weight: volume, price: price
+    });
+    if (!r.ok) { alert(errText(r.data)); return; }
+    el('vNewName').value = ''; el('vNewVolume').value = ''; el('vNewPrice').value = '';
+    await reloadVariants();
+}
+
+/* ---------- categories ---------- */
+function openCategoriesModal() { el('categoriesModal').classList.add('open'); }
+function closeCategoriesModal() { el('categoriesModal').classList.remove('open'); }
+
+async function saveCategory(catId) {
+    const sortVal = parseInt(el('catSort_' + catId).value, 10);
+    const r = await api('PATCH', '/api/admin/menu/categories/' + catId, {
+        name_ru: el('catRu_' + catId).value.trim(),
+        name_kz: el('catKz_' + catId).value.trim(),
+        name_en: el('catEn_' + catId).value.trim(),
+        sort_order: isNaN(sortVal) ? 0 : sortVal,
+        is_active: el('catActive_' + catId).checked
+    });
+    if (!r.ok) { alert(errText(r.data)); return; }
+    showToast('✓ Санат сақталды / Категория сохранена');
+    setTimeout(() => window.location.reload(), 600);
+}
+
+el('createCategoryForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const r = await api('POST', '/api/admin/menu/categories', {
+        code: el('newCatCode').value.trim(),
+        name_ru: el('newCatNameRu').value.trim(),
+        name_kz: el('newCatNameKz').value.trim(),
+        name_en: el('newCatNameEn').value.trim()
+    });
+    if (!r.ok) { alert(errText(r.data)); return; }
+    window.location.reload();
+});
+
+applyFilters();
+</script>
+{% endblock %}

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAR | RES group — Ресторан & Бар | Официальный сайт и меню</title>
+  <meta name="description" content="DAR | RES group — ресторан и бар с традиционными и авторскими блюдами, уютной атмосферой, завтраками и европейской кухней." />
+  
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content="DAR | RES group — Ресторан & Бар" />
+  <meta property="og:description" content="A Taste You’ll Want to Come Back To. Завтраки, традиционные блюда, международная кухня и гостеприимная атмосфера." />
+  <meta property="og:type" content="restaurant" />
+  <meta property="og:image" content="assets/hero_ambience.jpg" />
+
+  <!-- Favicon / Logo -->
+  <link rel="icon" type="image/jpeg" href="assets/dar_res_logo.jpeg" />
+
+  <!-- Google Fonts Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- =====================================================================
+       1. HEADER (Fixed/Sticky Navigation)
+       ===================================================================== -->
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <!-- Logo: Left Side (Proportions & Colors Preserved) -->
+      <a href="#home" class="brand-logo-link" aria-label="DAR | RES group - Главная">
+        <img src="assets/dar_res_logo.jpeg" alt="DAR | RES group Logo" class="brand-logo-img" />
+      </a>
+
+      <!-- Desktop Navigation Links: Right Side -->
+      <nav class="header-nav" aria-label="Основная навигация">
+        <a href="#home" class="nav-link" data-i18n-nav="home">Главная</a>
+        <a href="#menu" class="nav-link" data-i18n-nav="menu">Меню</a>
+        <a href="/lunchboxes" class="nav-link" data-i18n-nav="lunchboxes">Ланчбоксы</a>
+        <a href="#bar" class="nav-link" data-i18n-nav="bar">Бар</a>
+        <a href="#about" class="nav-link" data-i18n-nav="about">О нас</a>
+        <a href="#gallery" class="nav-link" data-i18n-nav="gallery">Галерея</a>
+        <a href="#contacts" class="nav-link" data-i18n-nav="contacts">Контакты</a>
+      </nav>
+
+      <!-- Language Selector & Actions -->
+      <div class="header-actions">
+        <!-- Language Switcher: KZ | RU | EN (Default: RU) -->
+        <div class="lang-selector" role="group" aria-label="Выбор языка">
+          <button type="button" class="lang-btn" data-lang="kz">KZ</button>
+          <button type="button" class="lang-btn active" data-lang="ru">RU</button>
+          <button type="button" class="lang-btn" data-lang="en">EN</button>
+        </div>
+
+        <!-- Prominent CTA Button -->
+        <a href="#booking" class="btn-header-cta" data-i18n-nav="bookBtn">
+          ЗАБРОНИРОВАТЬ СТОЛ
+        </a>
+
+        <!-- Mobile Hamburger Toggle -->
+        <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Открыть мобильное меню">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer & Backdrop -->
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <aside class="mobile-drawer" id="mobileDrawer" aria-label="Мобильное меню">
+    <div>
+      <div class="mobile-drawer-header">
+        <img src="assets/dar_res_logo.jpeg" alt="DAR | RES group" class="mobile-drawer-logo" />
+        <button type="button" class="mobile-drawer-close" id="mobileDrawerClose" aria-label="Закрыть меню">&times;</button>
+      </div>
+      <nav class="mobile-nav-links">
+        <a href="#home" class="mobile-nav-link" data-i18n-nav="home">Главная</a>
+        <a href="#menu" class="mobile-nav-link" data-i18n-nav="menu">Меню</a>
+        <a href="/lunchboxes" class="mobile-nav-link" data-i18n-nav="lunchboxes">Ланчбоксы</a>
+        <a href="#bar" class="mobile-nav-link" data-i18n-nav="bar">Бар</a>
+        <a href="#about" class="mobile-nav-link" data-i18n-nav="about">О нас</a>
+        <a href="#gallery" class="mobile-nav-link" data-i18n-nav="gallery">Галерея</a>
+        <a href="#contacts" class="mobile-nav-link" data-i18n-nav="contacts">Контакты</a>
+      </nav>
+    </div>
+    <div class="mobile-drawer-footer">
+      <div class="lang-selector" style="justify-content: center; width: 100%;">
+        <button type="button" class="lang-btn" data-lang="kz">KZ</button>
+        <button type="button" class="lang-btn active" data-lang="ru">RU</button>
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+      </div>
+      <a href="#booking" class="btn-hero-primary mobile-drawer-cta" data-i18n-nav="bookBtn">
+        ЗАБРОНИРОВАТЬ СТОЛ
+      </a>
+    </div>
+  </aside>
+
+  <main>
+    <!-- =====================================================================
+         2. HERO SECTION
+         ===================================================================== -->
+    <section class="hero-section" id="home">
+      <div class="hero-bg-media">
+        <img src="assets/hero_ambience.jpg" alt="DAR | RES group ресторан" />
+      </div>
+      <div class="hero-overlay"></div>
+      <div class="container hero-content">
+        <span class="hero-brand-tag" data-i18n-hero="brandSub">DAR | RES group</span>
+        <div class="qr-mode-badge" id="qrModeIndicator">
+          📱 Быстрое цифровое меню для столов (QR)
+        </div>
+        <h1 class="hero-headline" data-i18n-hero="title">A Taste You’ll Want to Come Back To</h1>
+        <p class="hero-subtitle" data-i18n-hero="subtitle">
+          Breakfast, traditional dishes, international cuisine, and a welcoming atmosphere.
+        </p>
+        <div class="hero-ctas">
+          <a href="#menu" class="btn-hero-primary" data-i18n-hero="btnMenu">ПОСМОТРЕТЬ МЕНЮ</a>
+          <a href="#booking" class="btn-hero-secondary" data-i18n-hero="btnBook">ЗАБРОНИРОВАТЬ СТОЛ</a>
+        </div>
+        <div class="hero-badges">
+          <div class="hero-badge-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span data-i18n-hero="badge1">100% Халал качество</span>
+          </div>
+          <div class="hero-badge-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+            </svg>
+            <span data-i18n-hero="badge2">Аутентичные рецепты</span>
+          </div>
+          <div class="hero-badge-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span data-i18n-hero="badge3">Уютная атмосфера</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         3. RESTAURANT MENU SECTION (Page 1 of PDF)
+         ===================================================================== -->
+    <section class="menu-section" id="menu">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-pretitle">DAR | RES GROUP</span>
+          <h2 class="section-title" data-i18n-sec="menuTitle">Меню ресторана</h2>
+          <p class="section-subtitle" data-i18n-sec="menuSubtitle">
+            Изысканные блюда, приготовленные из отборных свежих ингредиентов
+          </p>
+          <div class="section-divider"></div>
+        </header>
+
+        <!-- Category Tabs (Horizontally Scrollable on Mobile) -->
+        <div class="category-tabs-wrapper">
+          <div class="category-tabs-scroll" id="restaurantCategoryTabs">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Live Search Input -->
+        <div class="menu-search-wrapper">
+          <svg class="menu-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input 
+            type="search" 
+            class="menu-search-input" 
+            id="menuSearchInput" 
+            placeholder="Поиск блюда по названию или составу..." 
+            aria-label="Поиск блюда"
+          />
+        </div>
+
+        <!-- Dishes Grid -->
+        <div class="menu-grid" id="restaurantMenuGrid">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Service Charge Notice -->
+        <div class="service-charge-banner">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Қызмет 10% | Обслуживание 10% | Service 10%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         4. BAR MENU SECTION (Page 2 of PDF)
+         ===================================================================== -->
+    <section class="bar-section" id="bar">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-pretitle">COLLECTION & BEVERAGES</span>
+          <h2 class="section-title" data-i18n-sec="barTitle">Барное меню</h2>
+          <p class="section-subtitle" data-i18n-sec="barSubtitle">
+            Горячий чай, освежающие лимонады и богатая барная карта
+          </p>
+          <div class="section-divider"></div>
+        </header>
+
+        <!-- Bar Category Tabs -->
+        <div class="category-tabs-wrapper" style="background: rgba(255, 255, 255, 0.95);">
+          <div class="category-tabs-scroll" id="barCategoryTabs">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Bar Items Grid -->
+        <div class="bar-grid" id="barMenuGrid">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Service Charge Notice -->
+        <div class="service-charge-banner">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Қызмет 10% | Обслуживание 10% | Service 10%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         5. ABOUT US SECTION
+         ===================================================================== -->
+    <section class="about-section" id="about">
+      <div class="container">
+        <div class="about-grid">
+          <div class="about-content">
+            <span class="about-brand-tag" data-i18n-sec="aboutSubtitle">О нашем бренде</span>
+            <h2 class="about-title" data-i18n-sec="aboutTitle">DAR | RES group</h2>
+            <blockquote class="about-quote" id="aboutBrandQuote">
+              «Место, где традиционные блюда, современная кухня и гостеприимная атмосфера объединяются для незабываемых завтраков, обедов, ужинов и встреч.»
+            </blockquote>
+            <p style="color: var(--color-text-muted); font-size: 0.96rem; line-height: 1.7;">
+              Мы создаем пространство, где каждый гость чувствует себя желанным. Высокие стандарты качества, исключительная чистота рецептур и внимание к деталям делают DAR | RES group местом притяжения для семейных встреч, деловых обедов и душевных бесед.
+            </p>
+            <div class="about-pillars">
+              <div class="about-pillar-item">
+                <span class="about-pillar-num">100%</span>
+                <span class="about-pillar-label">Свежие продукты</span>
+              </div>
+              <div class="about-pillar-item">
+                <span class="about-pillar-num">HALAL</span>
+                <span class="about-pillar-label">Чистый стандарт</span>
+              </div>
+              <div class="about-pillar-item">
+                <span class="about-pillar-num">COZY</span>
+                <span class="about-pillar-label">Комфорт и уют</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="about-media-collage">
+            <div class="about-media-item span-2">
+              <img src="assets/about_dining.jpg" alt="Интерьер DAR | RES group" loading="lazy" />
+            </div>
+            <div class="about-media-item">
+              <img src="assets/food_plov.jpg" alt="Традиционные блюда" loading="lazy" />
+            </div>
+            <div class="about-media-item">
+              <img src="assets/drinks_tea.jpg" alt="Чайная церемония и напитки" loading="lazy" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         6. GALLERY SECTION
+         ===================================================================== -->
+    <section class="gallery-section" id="gallery">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-pretitle">VISUAL EXPERIENCE</span>
+          <h2 class="section-title" data-i18n-sec="galleryTitle">Фотогалерея</h2>
+          <p class="section-subtitle" data-i18n-sec="gallerySubtitle">
+            Атмосфера ресторана, интерьер и авторские подачи
+          </p>
+          <div class="section-divider"></div>
+        </header>
+
+        <div class="gallery-filters">
+          <button type="button" class="gallery-filter-btn active" data-filter="all">Все фотографии</button>
+          <button type="button" class="gallery-filter-btn" data-filter="interior">Интерьер</button>
+          <button type="button" class="gallery-filter-btn" data-filter="food">Основные блюда</button>
+          <button type="button" class="gallery-filter-btn" data-filter="breakfast">Завтраки</button>
+          <button type="button" class="gallery-filter-btn" data-filter="drinks">Напитки & Чай</button>
+          <button type="button" class="gallery-filter-btn" data-filter="atmosphere">Атмосфера</button>
+        </div>
+
+        <div class="gallery-grid" id="galleryGrid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         7. TABLE BOOKING SECTION
+         ===================================================================== -->
+    <section class="booking-section" id="booking">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-pretitle">RESERVATION</span>
+          <h2 class="section-title" data-i18n-sec="bookingTitle">Забронировать стол</h2>
+          <p class="section-subtitle" data-i18n-sec="bookingSubtitle">
+            Запланируйте ваш визит заранее и проведите время с комфортом
+          </p>
+          <div class="section-divider"></div>
+        </header>
+
+        <div class="booking-card">
+          <form class="booking-form" id="tableBookingForm">
+            <!-- Name -->
+            <div class="form-group">
+              <label for="bookName" class="form-label" data-i18n-booking="name">Ваше имя</label>
+              <input 
+                type="text" 
+                id="bookName" 
+                class="form-control" 
+                data-i18n-booking="namePlaceholder" 
+                placeholder="Например: Азамат" 
+                required 
+              />
+            </div>
+
+            <!-- Phone Number -->
+            <div class="form-group">
+              <label for="bookPhone" class="form-label" data-i18n-booking="phone">Номер телефона</label>
+              <input 
+                type="tel" 
+                id="bookPhone" 
+                class="form-control" 
+                data-i18n-booking="phonePlaceholder" 
+                placeholder="+7 (7XX) XXX-XX-XX" 
+                required 
+              />
+            </div>
+
+            <!-- Date -->
+            <div class="form-group">
+              <label for="bookDate" class="form-label" data-i18n-booking="date">Дата визита</label>
+              <input type="date" id="bookDate" class="form-control" required />
+            </div>
+
+            <!-- Time -->
+            <div class="form-group">
+              <label for="bookTime" class="form-label" data-i18n-booking="time">Время</label>
+              <input type="time" id="bookTime" class="form-control" value="19:00" required />
+            </div>
+
+            <!-- Number of Guests -->
+            <div class="form-group">
+              <label for="bookGuests" class="form-label" data-i18n-booking="guests">Количество гостей</label>
+              <select id="bookGuests" class="form-control">
+                <option value="1">1 гость</option>
+                <option value="2" selected>2 гостя</option>
+                <option value="3">3 гостя</option>
+                <option value="4">4 гостя</option>
+                <option value="5">5 гостей</option>
+                <option value="6+">6+ гостей (банкет)</option>
+              </select>
+            </div>
+
+            <!-- Comment -->
+            <div class="form-group full-width">
+              <label for="bookComment" class="form-label" data-i18n-booking="comment">Комментарий к брони</label>
+              <textarea 
+                id="bookComment" 
+                class="form-control" 
+                data-i18n-booking="commentPlaceholder" 
+                placeholder="Пожелания по посадке или особые предпочтения..."
+              ></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-booking-submit" data-i18n-booking="submitBtn">
+              ОТПРАВИТЬ ЗАПРОС
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         8. CONTACTS SECTION
+         ===================================================================== -->
+    <section class="contacts-section" id="contacts">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-pretitle">GET IN TOUCH</span>
+          <h2 class="section-title" data-i18n-sec="contactsTitle">Контакты</h2>
+          <p class="section-subtitle" data-i18n-sec="contactsSubtitle">
+            Мы всегда рады видеть вас в гостях
+          </p>
+          <div class="section-divider"></div>
+        </header>
+
+        <div class="contacts-grid">
+          <!-- Contact Cards Column -->
+          <div class="contacts-info-column">
+            <!-- Address Placeholder -->
+            <div class="contact-card">
+              <div class="contact-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+              </div>
+              <div class="contact-card-detail">
+                <span class="contact-card-label" data-i18n-contact="addressLabel">Адрес</span>
+                <span class="contact-card-value" data-i18n-contact="addressValue">Казахстан, [Адрес ресторана будет указан здесь]</span>
+              </div>
+            </div>
+
+            <!-- Phone Number Placeholder -->
+            <div class="contact-card">
+              <div class="contact-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+              </div>
+              <div class="contact-card-detail">
+                <span class="contact-card-label" data-i18n-contact="phoneLabel">Телефон</span>
+                <span class="contact-card-value" data-i18n-contact="phoneValue">+7 (7XX) XXX-XX-XX</span>
+              </div>
+            </div>
+
+            <!-- WhatsApp Placeholder -->
+            <div class="contact-card">
+              <div class="contact-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+              </div>
+              <div class="contact-card-detail">
+                <span class="contact-card-label" data-i18n-contact="whatsappLabel">WhatsApp</span>
+                <span class="contact-card-value" data-i18n-contact="whatsappValue">+7 (7XX) XXX-XX-XX</span>
+              </div>
+            </div>
+
+            <!-- Instagram Placeholder -->
+            <div class="contact-card">
+              <div class="contact-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                </svg>
+              </div>
+              <div class="contact-card-detail">
+                <span class="contact-card-label" data-i18n-contact="instagramLabel">Instagram</span>
+                <span class="contact-card-value" data-i18n-contact="instagramValue">@dar_res_group</span>
+              </div>
+            </div>
+
+            <!-- Opening Hours Placeholder -->
+            <div class="contact-card">
+              <div class="contact-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="contact-card-detail">
+                <span class="contact-card-label" data-i18n-contact="hoursLabel">Режим работы</span>
+                <span class="contact-card-value" data-i18n-contact="hoursValue">Пн – Вс: 08:00 – 00:00</span>
+              </div>
+            </div>
+
+            <!-- Action Buttons: CALL | WHATSAPP | GET DIRECTIONS -->
+            <div class="contact-action-buttons">
+              <a href="tel:+77000000000" class="btn-contact-action btn-contact-call">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                <span data-i18n-contact="btnCall">ПОЗВОНИТЬ</span>
+              </a>
+
+              <a href="https://wa.me/77000000000" target="_blank" rel="noopener noreferrer" class="btn-contact-action btn-contact-whatsapp">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+                <span data-i18n-contact="btnWhatsapp">WHATSAPP</span>
+              </a>
+
+              <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="btn-contact-action btn-contact-dir">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+                <span data-i18n-contact="btnDirections">КАК ДОБРАТЬСЯ</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Interactive Map Container -->
+          <div class="map-widget-wrapper">
+            <div class="map-placeholder-display">
+              <div class="map-card-popup">
+                <div class="map-pin-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                </div>
+                <h3 class="map-popup-title">DAR | RES group</h3>
+                <p class="map-popup-desc">
+                  Уютный ресторан и бар с блюдами высшего качества. Добро пожаловать!
+                </p>
+                <div style="margin-top: 14px;">
+                  <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="btn-header-cta" style="padding: 6px 14px; font-size: 0.75rem;">
+                    Открыть карту Google
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =====================================================================
+       9. FOOTER
+       ===================================================================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <!-- Logo & Tagline -->
+        <div class="footer-brand-col">
+          <div class="footer-logo-wrap">
+            <img src="assets/dar_res_logo.jpeg" alt="DAR | RES group" class="footer-logo-img" />
+          </div>
+          <p class="footer-tagline" data-i18n-footer="tagline">
+            DAR | RES group — Сервис ресторанного питания и напитков для пассажиров поездов.
+          </p>
+          <div class="footer-socials">
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Instagram">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+              </svg>
+            </a>
+            <a href="https://wa.me/77000000000" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="WhatsApp">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+            </a>
+            <a href="tel:+77000000000" class="social-link" aria-label="Телефон">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <div class="footer-col">
+          <h4 class="footer-col-title" data-i18n-sec="aboutSubtitle">Навигация</h4>
+          <ul class="footer-nav-list">
+            <li><a href="#home" data-i18n-nav="home">Главная</a></li>
+            <li><a href="#menu" data-i18n-nav="menu">Меню</a></li>
+            <li><a href="#bar" data-i18n-nav="bar">Бар</a></li>
+            <li><a href="#about" data-i18n-nav="about">О нас</a></li>
+            <li><a href="#contacts" data-i18n-nav="contacts">Контакты</a></li>
+          </ul>
+        </div>
+
+        <!-- Contact Placeholders -->
+        <div class="footer-col">
+          <h4 class="footer-col-title" data-i18n-sec="contactsTitle">Контакты</h4>
+          <ul class="footer-contacts-list">
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <span data-i18n-contact="addressValue">Казахстан, [Адрес ресторана]</span>
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span data-i18n-contact="phoneValue">+7 (7XX) XXX-XX-XX</span>
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span data-i18n-contact="hoursValue">Пн – Вс: 08:00 – 00:00</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p data-i18n-footer="rights">© 2026 DAR | RES group. Все права защищены.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =====================================================================
+       10. LIGHTBOX MODAL
+       ===================================================================== -->
+  <div class="lightbox-modal" id="lightboxModal" role="dialog" aria-modal="true" aria-label="Просмотр фотографии">
+    <div class="lightbox-dialog">
+      <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Закрыть просмотр">&times;</button>
+      <button type="button" class="lightbox-btn prev" id="lightboxPrev" aria-label="Предыдущее фото">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <div class="lightbox-img-wrapper">
+        <img src="" alt="" id="lightboxImg" />
+      </div>
+      <button type="button" class="lightbox-btn next" id="lightboxNext" aria-label="Следующее фото">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+      <div class="lightbox-caption" id="lightboxCaption"></div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       11. BOOKING CONFIRMATION MODAL
+       ===================================================================== -->
+  <div class="modal-overlay" id="bookingSuccessModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-icon-success">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h3 class="modal-title">DAR | RES group</h3>
+      <p class="modal-text" id="bookingSuccessText">
+        Спасибо! Ваш запрос на бронирование отправлен. Мы свяжемся с вами для подтверждения брони.
+      </p>
+      <button type="button" class="btn-modal-close" id="bookingSuccessClose">
+        ОТЛИЧНО
+      </button>
+    </div>
+  </div>
+
+  <!-- Core JavaScript -->
+  <script src="js/main.js"></script>
+</body>
+</html>
