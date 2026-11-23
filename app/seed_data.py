@@ -260,7 +260,9 @@ def upgrade_and_seed():
 
 
         # 5. Full 100% Seed Menu Items from PDF
-        if db.scalar(select(MenuItem).limit(1)) is None:
+        # Ланчбокстар (LB-*) 4.1-қадамда бұрын қосылады, сондықтан бос дерекқорда мәзір өткізіліп кетпеуі үшін
+        # тек ланчбокс емес тағамдардың бар-жоғын тексереміз.
+        if db.scalar(select(MenuItem).where(~MenuItem.sku.like("LB-%")).limit(1)) is None:
             items_to_seed = [
                 # --- BREAKFAST ---
                 {
