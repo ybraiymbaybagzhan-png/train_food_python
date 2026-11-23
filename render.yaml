@@ -1,0 +1,26 @@
+# Render Blueprint — DAR | RES group (тестілеуге арналған тегін жоспар)
+# Render.com -> New -> Blueprint -> осы репозиторийді таңдаңыз.
+services:
+  - type: web
+    name: dar-res-train-food
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /login
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      # Сессия кілтін Render өзі кездейсоқ жасайды
+      - key: SESSION_SECRET
+        generateValue: true
+      # Құпиясөздерді Render бетінде өзіңіз енгізесіз (GitHub-қа жазылмайды)
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: KITCHEN_PASSWORD
+        sync: false
+      - key: STAFF_PASSWORD
+        sync: false
+      # Тапсырыс түсетін WhatsApp нөмірі (87772141601)
+      - key: WHATSAPP_DEFAULT_PHONE
+        value: "77772141601"
