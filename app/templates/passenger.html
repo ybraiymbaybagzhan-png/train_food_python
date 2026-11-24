@@ -366,11 +366,11 @@
             <div class="form-row-grid">
                 <div class="form-group">
                     <label class="form-label required" data-i18n="lbl_seat_number">Орын нөмірі / Номер места</label>
-                    <input type="text" id="orderSeatNo" class="form-control highlight-input" value="{{ seat_no }}" placeholder="Мысалы: 18" required autofocus>
+                    <input type="text" id="orderSeatNo" class="form-control highlight-input" value="{{ seat_no }}" placeholder="Мысалы: 18" data-i18n-ph="ph_seat" required autofocus>
                 </div>
                 <div class="form-group">
                     <label class="form-label" data-i18n="lbl_compartment_number">Купе / Столик (қажет болса)</label>
-                    <input type="text" id="orderCompNo" class="form-control" placeholder="Купе №...">
+                    <input type="text" id="orderCompNo" class="form-control" placeholder="Купе №..." data-i18n-ph="ph_compartment">
                 </div>
             </div>
 
@@ -378,7 +378,7 @@
             <div class="form-row-grid">
                 <div class="form-group">
                     <label class="form-label" data-i18n="lbl_name">Аты-жөніңіз / Имя</label>
-                    <input type="text" id="orderPassengerName" class="form-control" placeholder="Мысалы: Арман">
+                    <input type="text" id="orderPassengerName" class="form-control" placeholder="Мысалы: Арман" data-i18n-ph="ph_name">
                 </div>
                 <div class="form-group">
                     <label class="form-label required" data-i18n="lbl_phone">Телефон нөмірі</label>
@@ -389,7 +389,7 @@
             <!-- Comment -->
             <div class="form-group">
                 <label class="form-label" data-i18n="lbl_comment">Аспазға ескерту / Комментарий</label>
-                <textarea id="orderComment" class="form-control" rows="2" placeholder="Пиязсыз, ыстық шай, т.б..."></textarea>
+                <textarea id="orderComment" class="form-control" rows="2" placeholder="Пиязсыз, ыстық шай, т.б..." data-i18n-ph="ph_comment"></textarea>
             </div>
 
             <!-- Order Review Summary inside Modal -->
@@ -557,6 +557,10 @@ const TRANSLATIONS = {
         lbl_seat_number: "Орын нөмірі (Міндетті)",
         lbl_compartment_number: "Купе нөмірі",
         lbl_name: "Аты-жөніңіз",
+        ph_name: "Мысалы: Арман",
+        ph_seat: "Мысалы: 18",
+        ph_compartment: "Купе №...",
+        ph_comment: "Пиязсыз, ыстық шай, т.б...",
         lbl_phone: "Телефон нөмірі",
         lbl_comment: "Аспазға ескерту",
         order_review_heading: "Тапсырыс құрамы:",
@@ -628,6 +632,10 @@ const TRANSLATIONS = {
         lbl_seat_number: "Номер места (Обязательно)",
         lbl_compartment_number: "Купе / Столик",
         lbl_name: "Ваше имя",
+        ph_name: "Например: Арман",
+        ph_seat: "Например: 18",
+        ph_compartment: "Купе №...",
+        ph_comment: "Без лука, горячий чай и т.д...",
         lbl_phone: "Номер телефона",
         lbl_comment: "Пожелания повару",
         order_review_heading: "Состав заказа:",
@@ -699,6 +707,10 @@ const TRANSLATIONS = {
         lbl_seat_number: "Seat Number (Required)",
         lbl_compartment_number: "Compartment / Table",
         lbl_name: "Your Name",
+        ph_name: "e.g. Arman",
+        ph_seat: "e.g. 18",
+        ph_compartment: "Compartment no...",
+        ph_comment: "No onions, hot tea, etc...",
         lbl_phone: "Phone Number",
         lbl_comment: "Notes to Kitchen",
         order_review_heading: "Order Summary:",
@@ -747,6 +759,12 @@ function applyLanguage(lang) {
                 el.textContent = dict[key];
             }
         }
+    });
+
+    // Translate placeholders (data-i18n-ph)
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const v = dict[el.dataset.i18nPh];
+        if (v) el.placeholder = v;
     });
 
     // Update category tabs
