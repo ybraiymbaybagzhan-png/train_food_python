@@ -51,6 +51,27 @@
             </div>
         </div>
 
+        <!-- Excel export + rating -->
+        <div class="report-box" style="margin-bottom: 28px;">
+            <h3 class="report-title">📥 Excel есебі / Выгрузка отчёта в Excel</h3>
+            <form method="get" action="/api/admin/reports/export.xlsx" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+                <label style="display:flex;flex-direction:column;gap:4px;font-size:.88rem;">Басталуы / С даты
+                    <input type="date" name="date_from" class="form-control">
+                </label>
+                <label style="display:flex;flex-direction:column;gap:4px;font-size:.88rem;">Аяқталуы / По дату
+                    <input type="date" name="date_to" class="form-control">
+                </label>
+                <button type="submit" class="btn-primary" style="padding:10px 20px;">⬇ .xlsx жүктеу / Скачать</button>
+            </form>
+            <small style="color: var(--color-warm-gray); display:block; margin-top:8px;">
+                Күндер бос болса — барлық тапсырыс. Файлда: қорытынды, тапсырыстар, позициялар, тағам рейтингі, жолаушы бағалары.
+            </small>
+            <div style="margin-top:14px;font-weight:600;">
+                ⭐ Орташа баға / Средняя оценка:
+                {% if avg_rating %}{{ avg_rating }} / 5 <span style="font-weight:400;color:var(--color-warm-gray);">({{ rating_count }} баға / оценок)</span>{% else %}—{% endif %}
+            </div>
+        </div>
+
         <!-- 2-Column Split: Popular Dishes & Order Status Breakdown -->
         <div class="reports-split-grid">
             <!-- Left: Popular Dishes Ranking -->

@@ -67,6 +67,9 @@
                         </div>
                     </div>
 
+                    {% if group_counts.get(group_key_fmt(o), 1) > 1 %}
+                    <div style="margin:6px 0;padding:6px 10px;border-radius:8px;background:#e6f0ff;color:#16438a;font-weight:700;font-size:.9rem;">👥 Осы орынға {{ group_counts[group_key_fmt(o)] }} тапсырыс — бірге апарыңыз / {{ group_counts[group_key_fmt(o)] }} заказа на это место — несите вместе</div>
+                    {% endif %}
                     <div class="s-passenger-row">
                         <span>Жолаушы / Пассажир:</span>
                         <strong>{{ o.passenger_name or 'Пассажир' }}</strong>
@@ -131,6 +134,9 @@
                         </div>
                     </div>
 
+                    {% if group_counts.get(group_key_fmt(o), 1) > 1 %}
+                    <div style="margin:6px 0;padding:6px 10px;border-radius:8px;background:#e6f0ff;color:#16438a;font-weight:700;font-size:.9rem;">👥 Осы орынға {{ group_counts[group_key_fmt(o)] }} тапсырыс — бірге апарыңыз / {{ group_counts[group_key_fmt(o)] }} заказа на это место — несите вместе</div>
+                    {% endif %}
                     <div class="s-passenger-row">
                         <span>Жолаушы / Пассажир:</span>
                         <strong>{{ o.passenger_name or 'Пассажир' }}</strong>

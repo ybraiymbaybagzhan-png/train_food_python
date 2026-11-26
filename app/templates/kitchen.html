@@ -125,7 +125,7 @@
             <button type="button" class="btn-close-modal" id="stockModalCloseBtn">&times;</button>
         </div>
         <p class="modal-intro">
-            Егер өнім таусылса, сөндіріңіз. Барлық жолаушылардың қосымшасында тағам дереу <strong>SOLD OUT</strong> болып белгіленеді.
+            Егер өнім таусылса, сөндіріңіз. Барлық жолаушылардың қосымшасында тағам дереу <strong>SOLD OUT</strong> болып белгіленеді. Стоп-лист ертеңгі күні автоматты түрде тазаланады / Стоп-лист автоматически сбрасывается на следующий день.
         </p>
 
         <div class="stock-search-box">
@@ -172,6 +172,8 @@ const INITIAL_ACTIVE_ORDERS = [
         created_at: "{{ o.created_at.strftime('%H:%M') }}",
         order_type: "{{ o.order_type or 'ONBOARD' }}",
         departure_at: "{{ departure_fmt(o) }}",
+        ready_eta_at: "{{ eta_fmt(o) }}",
+        group_key: {{ group_key_fmt(o) | tojson }},
         items: [
             {% for oi in o.items %}
             {
@@ -272,8 +274,19 @@ function renderKanban() {
 
 function renderOrderCard(order) {
     let actionButtons = '';
+    // Бұрын қойылған уақыт болса — қалған минутқа жақын нұсқа таңдалып тұрады (қабылдағаннан кейін әдейі өзгертпесе, ауыспайды)
+    const ETA_OPTS = [10, 15, 20, 25, 30, 40, 50, 60];
+    const remMin = order.ready_eta_at ? Math.ceil((new Date(order.ready_eta_at).getTime() - Date.now()) / 60000) : null;
+    const etaDefault = remMin ? (ETA_OPTS.find(m => m >= remMin) || 60) : 20;
+    const etaSelect = `
+        <label class="k-eta-pick" style="display:flex;align-items:center;gap:6px;font-size:.85rem;margin-bottom:6px;">
+            ⏱ <span>Дайын болады / Будет готово:</span>
+            <select id="eta_${order.id}" class="form-control" style="width:auto;padding:4px 8px;">
+                ${ETA_OPTS.map(m => `<option value="${m}" ${m === etaDefault ? 'selected' : ''}>${m} мин</option>`).join('')}
+            </select>
+        </label>`;
     if (order.status === 'NEW') {
-        actionButtons = `
+        actionButtons = etaSelect + `
             <button type="button" class="k-btn k-btn-accept" onclick="changeStatus(${order.id}, 'ACCEPTED')">
                 ✓ ҚАБЫЛДАУ / ПРИНЯТЬ
             </button>
@@ -282,7 +295,7 @@ function renderOrderCard(order) {
             </button>
         `;
     } else if (order.status === 'ACCEPTED') {
-        actionButtons = `
+        actionButtons = etaSelect + `
             <button type="button" class="k-btn k-btn-prepare" onclick="changeStatus(${order.id}, 'PREPARING')">
                 🍳 ДАЙЫНДАУ / ГОТОВИТЬ
             </button>
@@ -292,6 +305,7 @@ function renderOrderCard(order) {
         `;
     } else if (order.status === 'PREPARING') {
         actionButtons = `
+            <button type="button" class="k-btn" style="background:#fff6e0;color:#7a5200;border:1px solid #f0c36a;" onclick="updateEta(${order.id})" title="Жолаушыға көрсетілетін уақытты өзгерту">⏱ Уақыт / Время</button>
             <button type="button" class="k-btn k-btn-ready" onclick="changeStatus(${order.id}, 'READY')">
                 🛎️ ДАЙЫН / ГОТОВО
             </button>
@@ -304,8 +318,16 @@ function renderOrderCard(order) {
         `;
     }
 
+    const groupSize = order.group_key ? ordersStore.filter(o => o.group_key === order.group_key && !['DELIVERED', 'CANCELLED'].includes(o.status)).length : 1;
+    const groupBadge = groupSize > 1
+        ? `<span class="k-dest-badge" style="background:#e6f0ff;color:#16438a;">👥 Бір орынға ${groupSize} тапсырыс / ${groupSize} заказа на одно место</span>`
+        : '';
+    const etaBadge = (order.ready_eta_at && ['ACCEPTED', 'PREPARING'].includes(order.status))
+        ? `<span class="k-dest-badge" style="background:#fff6e0;color:#7a5200;">⏱ ~${Math.max(0, Math.ceil((new Date(order.ready_eta_at).getTime() - Date.now()) / 60000))} мин</span>`
+        : '';
+
     return `
-        <div class="kitchen-card ${order.status === 'NEW' ? 'pulse-new' : ''}" id="kcard_${order.id}">
+        <div class="kitchen-card ${order.status === 'NEW' ? 'pulse-new' : ''}" id="kcard_${order.id}" ${groupSize > 1 ? 'style="border-left:5px solid #2f6fd6;"' : ''}>
             <div class="k-card-header">
                 <span class="k-order-no">#${order.order_number}</span>
                 <span class="k-order-time">${order.created_at || ''}</span>
@@ -313,6 +335,7 @@ function renderOrderCard(order) {
 
             <div class="k-card-destination">
                 <span class="k-dest-badge">Поезд № ${order.train_no}</span>
+                ${groupBadge}${etaBadge}
                 ${order.order_type === 'PREORDER' ? `<span class="k-dest-badge" style="background:#fff3d6;color:#8a5a00;">🍱 ПРЕДЗАКАЗ · отправление ${order.departure_at || '—'}</span>` : ''}
                 <strong class="k-dest-seat">${order.order_type === 'PREORDER' ? (order.wagon_no || order.seat_no ? `Вагон ${order.wagon_no || '—'}, Место ${order.seat_no || '—'}` : 'Вагон/место не указаны') : `Вагон ${order.wagon_no}, Место ${order.seat_no}`}</strong>
                 ${order.passenger_name ? `<span class="k-passenger">${order.passenger_name}</span>` : ''}
@@ -345,15 +368,18 @@ function renderOrderCard(order) {
 
 async function changeStatus(orderId, newStatus, cancelReason = '') {
     try {
+        const body = { new_status: newStatus, cancel_reason: cancelReason };
+        const etaEl = document.getElementById(`eta_${orderId}`);
+        if (etaEl && (newStatus === 'ACCEPTED' || newStatus === 'PREPARING')) body.eta_minutes = parseInt(etaEl.value, 10);
         const res = await fetch(`/api/kitchen/orders/${orderId}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ new_status: newStatus, cancel_reason: cancelReason })
+            body: JSON.stringify(body)
         });
         const data = await res.json();
         if (res.ok && data.success) {
             const ord = ordersStore.find(o => o.id === orderId);
-            if (ord) ord.status = newStatus;
+            if (ord) { ord.status = newStatus; ord.ready_eta_at = data.ready_eta_at || ''; }
             renderKanban();
         } else {
             alert(data.detail || 'Ошибка изменения статуса.');
@@ -361,6 +387,29 @@ async function changeStatus(orderId, newStatus, cancelReason = '') {
     } catch (err) {
         alert('Ошибка связи с сервером.');
     }
+}
+
+async function updateEta(orderId) {
+    const v = prompt('Тапсырыс қанша минутта дайын болады? / Через сколько минут будет готово?', '15');
+    if (v === null) return;
+    const mins = parseInt(v, 10);
+    if (!mins || mins < 1) return;
+    try {
+        const res = await fetch(`/api/kitchen/orders/${orderId}/eta`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eta_minutes: mins })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const ord = ordersStore.find(o => o.id === orderId);
+            if (ord) ord.ready_eta_at = data.ready_eta_at;
+            renderKanban();
+            showToast('⏱ Уақыт жаңартылды / Время обновлено');
+        } else {
+            alert(data.detail || 'Error');
+        }
+    } catch (e) { alert('Ошибка связи с сервером.'); }
 }
 
 function promptCancelOrder(orderId) {
@@ -432,6 +481,10 @@ function connectKitchenWS() {
                 const ord = ordersStore.find(o => o.id === msg.data.order_id);
                 if (ord) {
                     ord.status = msg.data.new_status;
+                    ord.ready_eta_at = msg.data.ready_eta_at || '';
+                    if (msg.data.new_status === 'CANCELLED' && msg.data.cancelled_by === 'passenger') {
+                        showToast(`❌ Жолаушы бас тартты / Пассажир отменил: #${msg.data.order_number}`);
+                    }
                     renderKanban();
                 }
             }
@@ -446,6 +499,7 @@ function connectKitchenWS() {
 document.addEventListener('DOMContentLoaded', () => {
     renderKanban();
     connectKitchenWS();
+    setInterval(() => { if (!(document.activeElement && document.activeElement.tagName === 'SELECT')) renderKanban(); }, 60000); // ETA белгілерін жаңартып тұру
 });
 </script>
 {% endblock %}

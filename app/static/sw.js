@@ -1,4 +1,10 @@
-const CACHE_NAME = 'dar-res-cache-v6';
+const CACHE_NAME = 'dar-res-cache-v7';
+
+// Жолаушы беттері — желі жоқ кезде кэштен ашылады (қызметкер беттері кэштелмейді)
+const OFFLINE_PAGES = ['/', '/menu', '/cart', '/checkout', '/about', '/lunchboxes'];
+function isPassengerPage(pathname) {
+  return OFFLINE_PAGES.includes(pathname) || pathname.startsWith('/order/');
+}
 const STATIC_ASSETS = [
   '/',
   '/menu',
@@ -28,7 +34,20 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Фондық синхрондау: желі қайта пайда болғанда ашық бетке кезекті жіберуді бұйырамыз
+// (кезек localStorage-та сақталады, оған service worker қол жеткізе алмайды)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'flush-orders') {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+        clients.forEach((c) => c.postMessage({ type: 'flush-orders' }));
+      })
+    );
+  }
+});
+
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
   // NEVER cache API orders, auth, lunchboxes, or WebSocket connections
@@ -73,10 +92,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for pages with correct fallback to root '/'
+  // Network-first for pages: сәтті жауап кэшке түседі, желі жоқ болса кэштен (іздеу параметрінсіз) беріледі
+  const cacheable = event.request.mode === 'navigate' && isPassengerPage(url.pathname);
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request).then((r) => r || caches.match('/'));
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (cacheable && response && response.status === 200 && !response.redirected) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request, { ignoreSearch: true })
+          .then((r) => r || caches.match('/menu', { ignoreSearch: true }))
+          .then((r) => r || caches.match('/'));
+      })
   );
 });

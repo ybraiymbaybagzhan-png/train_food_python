@@ -101,6 +101,9 @@
         <span data-i18n="offline_text">⚠️ Соединение с сервером прервано. Корзина сохранена. Идет повторное подключение...</span>
     </div>
 
+    <!-- Офлайн кезек: желі жоқ кезде тапсырыс құрылғыда сақталып, байланыс пайда болғанда автоматты жіберіледі -->
+    <div id="queueBanner" style="display:none;position:sticky;top:0;z-index:60;padding:10px 16px;text-align:center;font-size:.92rem;font-weight:600;background:#fff3d6;color:#7a5200;border-bottom:1px solid #f0c36a;"></div>
+
     <!-- Hero Section: Dining on the Journey -->
     <section class="train-hero-section" id="hero">
         <div class="hero-bg-wrapper">
@@ -1216,6 +1219,12 @@ document.getElementById('orderForm').addEventListener('submit', async function(e
         localStorage.setItem('dar_res_idempotency_key', idempotencyKey);
     }
 
+    const restoreSubmitBtn = () => {
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline-block';
+        spinner.style.display = 'none';
+    };
+
     const payload = {
         passenger_name: document.getElementById('orderPassengerName').value.trim(),
         phone: document.getElementById('orderPhone').value.trim(),
@@ -1232,30 +1241,19 @@ document.getElementById('orderForm').addEventListener('submit', async function(e
         }))
     };
 
+    // Желі жоқ: тапсырысты құрылғыда кезекке қоямыз (idempotency-кілтімен — қайталанбайды)
+    if (!navigator.onLine) {
+        queueOrderOffline(payload, idempotencyKey);
+        restoreSubmitBtn();
+        return;
+    }
+
     try {
-        const res = await fetch('/api/orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Idempotency-Key': idempotencyKey
-            },
-            body: JSON.stringify(payload)
-        });
+        const res = await postOrder(payload, idempotencyKey);
 
         const data = await res.json();
         if (res.ok && data.success) {
-            try {
-                const recent = JSON.parse(localStorage.getItem('dar_res_recent_orders') || '[]');
-                recent.unshift({
-                    order_number: data.order_number,
-                    public_uuid: data.public_uuid,
-                    train_no: payload.train_no,
-                    wagon_no: payload.wagon_no,
-                    seat_no: payload.seat_no,
-                    created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                });
-                localStorage.setItem('dar_res_recent_orders', JSON.stringify(recent.slice(0, 10)));
-            } catch (err) {}
+            rememberRecentOrder(data, payload);
 
             cart = [];
             saveCart();
@@ -1270,13 +1268,138 @@ document.getElementById('orderForm').addEventListener('submit', async function(e
             spinner.style.display = 'none';
         }
     } catch (err) {
-        errorDiv.textContent = 'Желі қатесі / Ошибка соединения. Проверьте интернет в поезде.';
-        errorDiv.style.display = 'block';
-        submitBtn.disabled = false;
-        btnText.style.display = 'inline-block';
-        spinner.style.display = 'none';
+        // Байланыс үзілді/тым баяу: тапсырыс жоғалмайды — кезекке түседі
+        queueOrderOffline(payload, idempotencyKey);
+        restoreSubmitBtn();
     }
 });
+
+// ============================================================================
+// ОФЛАЙН КЕЗЕК
+// ============================================================================
+const OFFLINE_QUEUE_KEY = 'dar_res_order_queue';
+let queueFlushing = false;
+
+function loadOrderQueue() {
+    try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); } catch (e) { return []; }
+}
+function saveOrderQueue(q) {
+    try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q)); } catch (e) {}
+    updateQueueBanner();
+}
+
+async function postOrder(payload, key) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+        return await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': key },
+            body: JSON.stringify(payload),
+            signal: ctrl.signal
+        });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+function rememberRecentOrder(data, payload) {
+    try {
+        const recent = JSON.parse(localStorage.getItem('dar_res_recent_orders') || '[]');
+        if (recent.some(r => r.public_uuid === data.public_uuid)) return;
+        recent.unshift({
+            order_number: data.order_number,
+            public_uuid: data.public_uuid,
+            train_no: payload.train_no,
+            wagon_no: payload.wagon_no,
+            seat_no: payload.seat_no,
+            created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        localStorage.setItem('dar_res_recent_orders', JSON.stringify(recent.slice(0, 10)));
+    } catch (err) {}
+}
+
+function queueOrderOffline(payload, key) {
+    const q = loadOrderQueue();
+    if (!q.some(e => e.key === key)) {
+        q.push({ key: key, payload: payload, queued_at: Date.now() });
+    }
+    saveOrderQueue(q);
+    cart = [];
+    saveCart();
+    localStorage.removeItem('dar_res_idempotency_key');
+    updateCartUI();
+    checkoutModal.classList.remove('open');
+    showToast('📡 Желі жоқ — тапсырыс кезекте сақталды / Нет сети — заказ в очереди, отправится автоматически');
+    // Қолжетімді болса, service worker фондық синхрондауды да тіркейді
+    try {
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            navigator.serviceWorker.ready.then(reg => reg.sync.register('flush-orders')).catch(() => {});
+        }
+    } catch (e) {}
+}
+
+function updateQueueBanner(sentInfo) {
+    const el = document.getElementById('queueBanner');
+    if (!el) return;
+    const q = loadOrderQueue();
+    if (q.length) {
+        el.style.background = '#fff3d6'; el.style.color = '#7a5200';
+        el.textContent = '📡 Кезекте ' + q.length + ' тапсырыс — байланыс пайда болғанда автоматты жіберіледі / В очереди заказов: ' + q.length + ' — отправятся при появлении связи';
+        el.style.display = 'block';
+    } else if (sentInfo) {
+        el.style.background = '#e8f8ee'; el.style.color = '#0b6b32';
+        el.innerHTML = '✅ Тапсырыс жіберілді / Заказ отправлен: <a href="/order/' + sentInfo.public_uuid + '" style="color:inherit;text-decoration:underline;">#' + sentInfo.order_number + '</a>';
+        el.style.display = 'block';
+        setTimeout(() => { if (!loadOrderQueue().length) el.style.display = 'none'; }, 15000);
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+async function flushOrderQueue() {
+    if (queueFlushing || !navigator.onLine) return;
+    const q = loadOrderQueue();
+    if (!q.length) return;
+    queueFlushing = true;
+    const remaining = [];
+    let lastSent = null;
+    try {
+        for (let i = 0; i < q.length; i++) {
+            const entry = q[i];
+            try {
+                const res = await postOrder(entry.payload, entry.key);
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.success) {
+                    rememberRecentOrder(data, entry.payload);
+                    lastSent = data;
+                } else if (res.status >= 400 && res.status < 500) {
+                    // Серверден қабылданбады (мысалы, тағам таусылған) — кезектен алып тастаймыз, жолаушыға хабарлаймыз
+                    showToast('⚠️ Кезектегі тапсырыс қабылданбады / Заказ из очереди отклонён: ' + (data.detail || res.status));
+                } else {
+                    remaining.push(entry);
+                }
+            } catch (e) {
+                // желі әлі жоқ: осы және қалғандарын сақтаймыз
+                remaining.push(...q.slice(i));
+                break;
+            }
+        }
+    } finally {
+        queueFlushing = false;
+        saveOrderQueue(remaining);
+        if (lastSent) {
+            updateQueueBanner(lastSent);
+            showToast('✅ Тапсырыс жіберілді / Заказ отправлен: #' + lastSent.order_number);
+        }
+    }
+}
+
+window.addEventListener('online', flushOrderQueue);
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.type === 'flush-orders') flushOrderQueue(); });
+}
+setInterval(flushOrderQueue, 15000);
 
 // Category Filter Tabs
 document.querySelectorAll('.cat-pill').forEach(btn => {
@@ -1353,6 +1476,19 @@ function populateRecentOrders() {
     if (!container) return;
 
     const orders = JSON.parse(localStorage.getItem('dar_res_recent_orders') || '[]');
+    const queued = loadOrderQueue();
+    const queuedHtml = queued.map(e => `
+        <div class="recent-order-pill">
+            <div class="ro-left">
+                <strong>⏳ Кезекте / В очереди</strong>
+                <span>Желі пайда болғанда жіберіледі / Отправится при появлении связи</span>
+            </div>
+        </div>
+    `).join('');
+    if (orders.length === 0 && queued.length) {
+        container.innerHTML = queuedHtml;
+        return;
+    }
     if (orders.length === 0) {
         container.innerHTML = `
             <div class="empty-state-notice">
@@ -1363,16 +1499,36 @@ function populateRecentOrders() {
         return;
     }
 
-    container.innerHTML = orders.map(ord => `
-        <div class="recent-order-pill">
+    container.innerHTML = '<div id="ordersGroupSummary" style="display:none;margin-bottom:10px;padding:10px 12px;border-radius:10px;background:#f4f7fb;font-weight:600;"></div>' + queuedHtml + orders.map(ord => `
+        <div class="recent-order-pill" data-uuid="${ord.public_uuid}">
             <div class="ro-left">
                 <strong>№ ${ord.order_number}</strong>
                 <span>Поезд ${ord.train_no}, Вагон ${ord.wagon_no}, Место ${ord.seat_no}</span>
-                <small>${ord.created_at || ''}</small>
+                <small>${ord.created_at || ''} <b class="ro-status" style="margin-left:6px;"></b></small>
             </div>
             <a href="/order/${ord.public_uuid}" class="btn-check-status">Күйін көру / Проверить</a>
         </div>
     `).join('');
+
+    // Бір жолаушының барлық тапсырысы: тірі күй + жиынтық сома
+    const STATUS_TXT = { NEW: 'Жаңа / Новый', ACCEPTED: 'Қабылданды / Принят', PREPARING: 'Әзірленуде / Готовится', READY: 'Дайын / Готов', OUT_FOR_DELIVERY: 'Жолда / В пути', DELIVERED: 'Жеткізілді / Доставлен', CANCELLED: 'Бас тартылды / Отменён' };
+    let activeCount = 0, activeSum = 0, pending = orders.length;
+    const finishSummary = () => {
+        const box = document.getElementById('ordersGroupSummary');
+        if (box && activeCount > 1) {
+            box.style.display = 'block';
+            box.textContent = 'Белсенді тапсырыстар / Активных заказов: ' + activeCount + ' · ' + formatKZT(activeSum);
+        }
+    };
+    orders.forEach(ord => {
+        fetch('/api/orders/' + encodeURIComponent(ord.public_uuid)).then(r => r.ok ? r.json() : null).then(d => {
+            if (d) {
+                const pill = container.querySelector('[data-uuid="' + ord.public_uuid + '"] .ro-status');
+                if (pill) pill.textContent = '· ' + (STATUS_TXT[d.status] || d.status) + ' · ' + formatKZT(d.total);
+                if (!['DELIVERED', 'CANCELLED'].includes(d.status)) { activeCount++; activeSum += d.total; }
+            }
+        }).catch(() => {}).finally(() => { if (--pending === 0) finishSummary(); });
+    });
 }
 
 // Find order manually by input
@@ -1457,6 +1613,15 @@ document.addEventListener('DOMContentLoaded', () => {
     applyLanguage(activeLang);
     loadMenu();
     setupWebSocket();
+    updateQueueBanner();
+    flushOrderQueue();
+    try {
+        const skipped = JSON.parse(sessionStorage.getItem('dar_res_reorder_skipped') || '[]');
+        if (skipped.length) {
+            sessionStorage.removeItem('dar_res_reorder_skipped');
+            showToast('Қолжетімсіз тағамдар қосылмады / Недоступно и не добавлено: ' + skipped.join(', '));
+        }
+    } catch (e) {}
     // Ланчбокс бетінен келгенде себет бірден ашылады (/menu?cart=1)
     if (new URLSearchParams(window.location.search).get('cart') === '1') {
         openCart();

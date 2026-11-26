@@ -40,8 +40,9 @@ from .models import (
     UserRole,
 )
 from .lunchbox_data import LUNCHBOXES_DATA, get_localized_lunchboxes
-from .whatsapp import KZ_TZ, build_order_message, build_whatsapp_url, format_departure, is_valid_phone, normalize_phone
+from .whatsapp import KZ_TZ, build_order_message, build_whatsapp_url, format_departure, is_valid_phone, normalize_phone, to_kz
 from .seed_data import hash_password, upgrade_and_seed, verify_password
+from .xlsx_export import build_xlsx
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -121,19 +122,26 @@ async def global_exception_handler(request: Request, exc: Exception):
 class RealtimeHub:
     def __init__(self):
         self.active_connections: list[WebSocket] = []
+        self.staff_connections: set[int] = set()  # id(ws) — тек кіру жасаған қызметкерлер (аспаз/жолсерік/админ)
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, staff: bool = False):
         await websocket.accept()
         self.active_connections.append(websocket)
+        if staff:
+            self.staff_connections.add(id(websocket))
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+        self.staff_connections.discard(id(websocket))
 
-    async def broadcast(self, event_type: str, data: dict):
+    async def broadcast(self, event_type: str, data: dict, staff_only: bool = False):
+        """staff_only=True — жолаушылардың жеке деректері (аты, орны) қызметкерлерге ғана жіберіледі."""
         payload = {"event": event_type, "data": data, "timestamp": datetime.utcnow().isoformat()}
         dead = []
-        for ws in self.active_connections:
+        for ws in list(self.active_connections):
+            if staff_only and id(ws) not in self.staff_connections:
+                continue
             try:
                 await ws.send_json(payload)
             except Exception:
@@ -143,6 +151,33 @@ class RealtimeHub:
 
 
 hub = RealtimeHub()
+
+
+def iso_utc(dt: Optional[datetime]) -> Optional[str]:
+    """Дерекқордан келген (UTC, tz-сыз) уақытты браузерге ISO 'Z' пішімінде береді."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def kz_today():
+    return datetime.now(KZ_TZ).date()
+
+
+def reset_expired_stoplist(db: Session) -> None:
+    """Стоп-листке кеше (немесе одан бұрын) қойылған тағамдарды жаңа күні автоматты қайта қосады."""
+    today = kz_today()
+    rows = db.scalars(
+        select(MenuItem).where(MenuItem.is_available.is_(False), MenuItem.sold_out_date.is_not(None), MenuItem.sold_out_date < today)
+    ).all()
+    if not rows:
+        return
+    for item in rows:
+        item.is_available = True
+        item.sold_out_date = None
+    db.commit()
 
 
 # ==============================================================================
@@ -214,9 +249,8 @@ def create_session_cookie(response: Response, user: User):
 # ==============================================================================
 # WEBSOCKET ENDPOINT
 # ==============================================================================
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await hub.connect(websocket)
+async def _ws_loop(websocket: WebSocket, staff: bool = False):
+    await hub.connect(websocket, staff=staff)
     try:
         while True:
             # Keepalive listener
@@ -227,6 +261,41 @@ async def websocket_endpoint(websocket: WebSocket):
         hub.disconnect(websocket)
     except Exception:
         hub.disconnect(websocket)
+
+
+def _ws_staff_user(websocket: WebSocket) -> Optional[User]:
+    """WebSocket cookie арқылы қызметкерді тексереді (аспаз/жолсерік/админ)."""
+    session_val = websocket.cookies.get("dar_res_session")
+    if not session_val:
+        return None
+    try:
+        user_id_str, token_hash = session_val.split(":", 1)
+        with SessionLocal() as db:
+            user = db.get(User, int(user_id_str))
+            if user and user.is_active and token_hash == generate_session_token(user):
+                return user
+    except Exception:
+        pass
+    return None
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await _ws_loop(websocket)
+
+
+@app.websocket("/ws/order/{order_key}")
+async def websocket_order(websocket: WebSocket, order_key: str):
+    await _ws_loop(websocket)
+
+
+@app.websocket("/ws/kitchen")
+@app.websocket("/ws/staff")
+async def websocket_staff(websocket: WebSocket):
+    if _ws_staff_user(websocket) is None:
+        await websocket.close(code=4401)
+        return
+    await _ws_loop(websocket, staff=True)
 
 
 # ==============================================================================
@@ -434,6 +503,7 @@ def get_lunchboxes_api(lang: str = "ru", db: Session = Depends(get_db)):
 # ==============================================================================
 @app.get("/api/menu")
 def get_menu_api(include_lunchboxes: bool = False, db: Session = Depends(get_db)):
+    reset_expired_stoplist(db)
     stmt = select(MenuCategory).where(MenuCategory.is_active.is_(True))
     if not include_lunchboxes:
         stmt = stmt.where(MenuCategory.code != LUNCHBOX_CATEGORY_CODE)
@@ -693,6 +763,8 @@ async def create_order(
             detail="Ordering is temporarily closed / Тапсырыс қабылдау уақытша тоқтатылды / Прием заказов временно приостановлен."
         )
 
+    reset_expired_stoplist(db)
+
     # Idempotency check: header or body
     idempotency_key = payload.idempotency_key or x_idempotency_key
     if idempotency_key:
@@ -773,7 +845,7 @@ async def create_order(
         if not menu_item.is_available:
             raise HTTPException(
                 status_code=400,
-                detail=f"Блюдо '{menu_item.name_ru}' закончилось на кухне (Sold Out)."
+                detail=f"Блюдо «{menu_item.name_ru}» закончилось (стоп-лист) / «{menu_item.name_kz}» таусылды (стоп-лист) / «{menu_item.name_en}» is sold out today."
             )
 
         item_name = menu_item.name_ru
@@ -889,8 +961,9 @@ async def create_order(
                 "price": float(oi.price_snapshot),
             }
             for oi in new_order.items
-        ]
-    })
+        ],
+        "group_key": order_group_key(new_order),
+    }, staff_only=True)
 
     return {
         "success": True,
@@ -934,6 +1007,7 @@ def passenger_order_status(
         raise HTTPException(status_code=404, detail="Заказ не найден / Order not found")
 
     step_idx = get_status_step_index(order.status)
+    related = related_orders(db, order)
 
     return templates.TemplateResponse(
         request=request,
@@ -941,6 +1015,10 @@ def passenger_order_status(
         context={
             "order": order,
             "step_index": step_idx,
+            "eta_iso": iso_utc(order.ready_eta_at),
+            "can_cancel": order.status in PASSENGER_CANCELLABLE,
+            "related": related,
+            "related_total": (sum(float(r.total) for r in related) + float(order.total)) if related else 0,
             "current_lang": lang,
             "whatsapp_url": order_whatsapp_url(db, order),
             "departure_str": format_departure(order.departure_at),
@@ -969,9 +1047,17 @@ def get_order_api(public_uuid: str, db: Session = Depends(get_db)):
         "service_charge": float(order.service_charge),
         "total": float(order.total),
         "cancel_reason": order.cancel_reason,
+        "cancelled_by": order.cancelled_by,
+        "ready_eta_at": iso_utc(order.ready_eta_at),
+        "can_cancel": order.status in PASSENGER_CANCELLABLE,
+        "rating": order.rating,
+        "created_at": iso_utc(order.created_at),
         "whatsapp_url": order_whatsapp_url(db, order),
+        "related": [_order_brief(r) for r in related_orders(db, order)],
         "items": [
             {
+                "menu_item_id": oi.menu_item_id,
+                "variant_id": oi.menu_variant_id,
                 "name": oi.item_name_snapshot,
                 "variant": oi.variant_snapshot,
                 "quantity": oi.quantity,
@@ -981,6 +1067,151 @@ def get_order_api(public_uuid: str, db: Session = Depends(get_db)):
             for oi in order.items
         ]
     }
+
+
+# ------------------------------------------------------------------------------
+# Жолаушының өз тапсырысын басқаруы: бас тарту, қайта тапсыру, баға, байланысты тапсырыстар
+# ------------------------------------------------------------------------------
+PASSENGER_CANCELLABLE = (OrderStatus.NEW, OrderStatus.ACCEPTED)  # аспаз әзірлей бастағанға дейін
+
+
+def _digits(raw: Optional[str]) -> str:
+    return re.sub(r"\D", "", raw or "")
+
+
+def order_group_key(order: Order) -> str:
+    """Бір жолаушының тапсырыстарын топтау кілті: пойыз + вагон + орын (болмаса — телефон)."""
+    place = f"{order.wagon_no}|{order.seat_no}|{order.compartment_no}".strip("|").lower()
+    if order.wagon_no or order.seat_no:
+        return f"{order.train_no}|{place}"
+    return f"{order.train_no}|tel:{normalize_phone(order.phone)}"
+
+
+def related_orders(db: Session, order: Order) -> list[Order]:
+    """Сол жолаушының (телефон бойынша, сол пойыз) соңғы 24 сағаттағы басқа тапсырыстары."""
+    phone = normalize_phone(order.phone)
+    if not phone:
+        return []
+    since = datetime.utcnow() - timedelta(hours=24)
+    rows = db.scalars(
+        select(Order)
+        .where(Order.train_no == order.train_no, Order.id != order.id, Order.created_at >= since)
+        .order_by(Order.id)
+    ).all()
+    return [r for r in rows if normalize_phone(r.phone) == phone]
+
+
+def _order_brief(o: Order) -> dict:
+    return {
+        "order_number": o.order_number,
+        "public_uuid": o.public_uuid,
+        "status": o.status.value,
+        "total": float(o.total),
+        "items_count": sum(i.quantity for i in o.items),
+        "ready_eta_at": iso_utc(o.ready_eta_at),
+    }
+
+
+def _find_order_by_uuid(db: Session, public_uuid: str) -> Order:
+    order = db.scalar(select(Order).where(Order.public_uuid == public_uuid))
+    if not order:
+        raise HTTPException(status_code=404, detail="Заказ не найден / Тапсырыс табылмады")
+    return order
+
+
+class PassengerCancelIn(BaseModel):
+    phone_tail: str = ""
+
+
+@app.post("/api/orders/{public_uuid}/cancel")
+async def passenger_cancel_order(public_uuid: str, payload: PassengerCancelIn, db: Session = Depends(get_db)):
+    order = _find_order_by_uuid(db, public_uuid)
+    # Басқа адам (тапсырыс нөмірін болжап) бас тарта алмауы үшін — тапсырыс берген телефонның соңғы 4 саны
+    tail = _digits(payload.phone_tail)
+    if len(tail) != 4 or not _digits(order.phone).endswith(tail):
+        raise HTTPException(status_code=403, detail="Телефон нөмірінің соңғы 4 саны сәйкес емес / Последние 4 цифры телефона не совпадают.")
+    if order.status not in PASSENGER_CANCELLABLE:
+        raise HTTPException(
+            status_code=400,
+            detail="Заказ уже готовится, отменить нельзя. Свяжитесь с проводником / Тапсырыс әзірленуде, бас тартуға болмайды. Жолсерікке хабарласыңыз.",
+        )
+    old_status = order.status
+    order.status = OrderStatus.CANCELLED
+    order.cancelled_at = datetime.utcnow()
+    order.cancelled_by = "passenger"
+    order.cancel_reason = "Отменено пассажиром / Жолаушы бас тартты"
+    order.ready_eta_at = None
+    db.add(OrderStatusHistory(order_id=order.id, old_status=old_status.value, new_status=OrderStatus.CANCELLED.value, changed_by="passenger"))
+    db.commit()
+
+    await hub.broadcast("order_status_update", {
+        "order_id": order.id,
+        "public_uuid": order.public_uuid,
+        "order_number": order.order_number,
+        "old_status": old_status.value,
+        "new_status": OrderStatus.CANCELLED.value,
+        "step_index": get_status_step_index(OrderStatus.CANCELLED),
+        "cancel_reason": order.cancel_reason,
+        "cancelled_by": "passenger",
+        "ready_eta_at": None,
+    })
+    return {"success": True, "status": order.status.value}
+
+
+@app.get("/api/orders/{public_uuid}/reorder")
+def passenger_reorder_lines(public_uuid: str, db: Session = Depends(get_db)):
+    """Бұрынғы тапсырыстан себетке дайын жолдар (қазіргі бағамен). Таусылған тағамдар `skipped` тізімінде."""
+    order = _find_order_by_uuid(db, public_uuid)
+    reset_expired_stoplist(db)
+    lines, skipped = [], []
+    for oi in order.items:
+        item = db.get(MenuItem, oi.menu_item_id) if oi.menu_item_id else None
+        if not item or not item.is_active or not item.is_available or item.category.code == LUNCHBOX_CATEGORY_CODE:
+            skipped.append(oi.item_name_snapshot)
+            continue
+        variant = None
+        unit_price = float(item.price)
+        if oi.menu_variant_id:
+            variant = db.get(MenuItemVariant, oi.menu_variant_id)
+            if not variant or variant.menu_item_id != item.id or not variant.is_available:
+                skipped.append(oi.item_name_snapshot)
+                continue
+            unit_price = float(variant.price)
+        if unit_price <= 0:
+            skipped.append(oi.item_name_snapshot)
+            continue
+        lines.append({
+            "menu_item_id": item.id,
+            "name_ru": item.name_ru, "name_kz": item.name_kz or item.name_ru, "name_en": item.name_en or item.name_ru,
+            "variant_id": variant.id if variant else None,
+            "variant_name_ru": variant.name_ru if variant else "",
+            "variant_name_kz": (variant.name_kz or variant.name_ru) if variant else "",
+            "variant_name_en": (variant.name_en or variant.name_ru) if variant else "",
+            "unit_price": unit_price,
+            "quantity": oi.quantity,
+        })
+    return {"lines": lines, "skipped": skipped}
+
+
+class RatingIn(BaseModel):
+    rating: int
+    comment: Optional[str] = ""
+
+
+@app.post("/api/orders/{public_uuid}/rating")
+def passenger_rate_order(public_uuid: str, payload: RatingIn, db: Session = Depends(get_db)):
+    order = _find_order_by_uuid(db, public_uuid)
+    if order.status != OrderStatus.DELIVERED:
+        raise HTTPException(status_code=400, detail="Баға тапсырыс жеткізілгеннен кейін қойылады / Оценить можно после доставки.")
+    if not 1 <= payload.rating <= 5:
+        raise HTTPException(status_code=400, detail="Баға 1-ден 5-ке дейін / Оценка от 1 до 5.")
+    if order.rating is not None:
+        raise HTTPException(status_code=400, detail="Сіз бұл тапсырысқа баға қойғансыз / Вы уже оценили этот заказ.")
+    order.rating = payload.rating
+    order.rating_comment = (payload.comment or "").strip()[:500]
+    order.rated_at = datetime.utcnow()
+    db.commit()
+    return {"success": True, "rating": order.rating}
 
 
 # ==============================================================================
@@ -1065,6 +1296,7 @@ def kitchen_dashboard(
     user: User = Depends(require_role([UserRole.KITCHEN, UserRole.ADMIN, UserRole.SUPER_ADMIN])),
     db: Session = Depends(get_db),
 ):
+    reset_expired_stoplist(db)
     active_orders = db.scalars(
         select(Order)
         .where(Order.status != OrderStatus.DELIVERED, Order.status != OrderStatus.CANCELLED)
@@ -1091,6 +1323,8 @@ def kitchen_dashboard(
             "completed_orders": completed_today,
             "menu_items": menu_items,
             "departure_fmt": lambda o: format_departure(o.departure_at),
+            "eta_fmt": lambda o: iso_utc(o.ready_eta_at) or "",
+            "group_key_fmt": order_group_key,
         },
     )
 
@@ -1098,6 +1332,7 @@ def kitchen_dashboard(
 class StatusUpdateIn(BaseModel):
     new_status: OrderStatus
     cancel_reason: Optional[str] = ""
+    eta_minutes: Optional[int] = None  # «N минутта дайын болады» — қабылдау/әзірлеу кезінде аспаз көрсетеді
 
 
 VALID_STATUS_TRANSITIONS = {
@@ -1136,18 +1371,24 @@ async def update_order_status(
     order.status = target_status
     now = datetime.utcnow()
 
+    if payload.eta_minutes is not None and target_status in (OrderStatus.ACCEPTED, OrderStatus.PREPARING):
+        order.ready_eta_at = now + timedelta(minutes=max(1, min(int(payload.eta_minutes), 240)))
+
     if target_status == OrderStatus.ACCEPTED:
         order.accepted_at = now
     elif target_status == OrderStatus.PREPARING:
         order.preparing_at = now
     elif target_status == OrderStatus.READY:
         order.ready_at = now
+        order.ready_eta_at = None
     elif target_status == OrderStatus.OUT_FOR_DELIVERY:
         order.out_for_delivery_at = now
     elif target_status == OrderStatus.DELIVERED:
         order.delivered_at = now
     elif target_status == OrderStatus.CANCELLED:
         order.cancelled_at = now
+        order.cancelled_by = "kitchen"
+        order.ready_eta_at = None
         order.cancel_reason = payload.cancel_reason or "Отменено кухней/администратором"
 
     db.add(OrderStatusHistory(
@@ -1167,9 +1408,43 @@ async def update_order_status(
         "new_status": target_status.value,
         "step_index": get_status_step_index(target_status),
         "cancel_reason": order.cancel_reason,
+        "cancelled_by": order.cancelled_by,
+        "ready_eta_at": iso_utc(order.ready_eta_at),
     })
 
-    return {"success": True, "order_id": order.id, "new_status": target_status.value}
+    return {"success": True, "order_id": order.id, "new_status": target_status.value, "ready_eta_at": iso_utc(order.ready_eta_at)}
+
+
+class EtaUpdateIn(BaseModel):
+    eta_minutes: int
+
+
+@app.patch("/api/kitchen/orders/{order_id}/eta")
+async def update_order_eta(
+    order_id: int,
+    payload: EtaUpdateIn,
+    user: User = Depends(require_role([UserRole.KITCHEN, UserRole.ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db),
+):
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status not in (OrderStatus.NEW, OrderStatus.ACCEPTED, OrderStatus.PREPARING):
+        raise HTTPException(status_code=400, detail="Уақытты тек дайын болмаған тапсырысқа қоюға болады.")
+    order.ready_eta_at = datetime.utcnow() + timedelta(minutes=max(1, min(payload.eta_minutes, 240)))
+    db.commit()
+    await hub.broadcast("order_status_update", {
+        "order_id": order.id,
+        "public_uuid": order.public_uuid,
+        "order_number": order.order_number,
+        "old_status": order.status.value,
+        "new_status": order.status.value,
+        "step_index": get_status_step_index(order.status),
+        "cancel_reason": order.cancel_reason,
+        "cancelled_by": order.cancelled_by,
+        "ready_eta_at": iso_utc(order.ready_eta_at),
+    })
+    return {"success": True, "ready_eta_at": iso_utc(order.ready_eta_at)}
 
 
 class AvailabilityUpdateIn(BaseModel):
@@ -1188,6 +1463,7 @@ async def update_item_availability(
         raise HTTPException(status_code=404, detail="Item not found")
 
     item.is_available = payload.is_available
+    item.sold_out_date = None if payload.is_available else kz_today()
     db.commit()
 
     # Broadcast availability to all passenger apps live
@@ -1229,8 +1505,19 @@ def staff_dashboard(
             "ready_orders": ready_orders,
             "delivering_orders": delivering_orders,
             "delivered_orders": delivered_today,
+            # Бір орынға (жолаушыға) бірнеше тапсырыс болса — жолсерікке бірге жеткізу үшін белгі
+            "group_counts": _group_counts(list(ready_orders) + list(delivering_orders)),
+            "group_key_fmt": order_group_key,
         },
     )
+
+
+def _group_counts(orders: list[Order]) -> dict:
+    counts: dict[str, int] = {}
+    for o in orders:
+        k = order_group_key(o)
+        counts[k] = counts.get(k, 0) + 1
+    return counts
 
 
 @app.post("/api/staff/orders/{order_id}/take")
@@ -1376,6 +1663,9 @@ def get_kitchen_orders_api(
             "created_at": o.created_at.strftime("%H:%M"),
             "order_type": o.order_type,
             "departure_at": format_departure(o.departure_at),
+            "ready_eta_at": iso_utc(o.ready_eta_at),
+            "group_key": order_group_key(o),
+            "rating": o.rating,
             "items": [
                 {
                     "name": oi.item_name_snapshot,
@@ -1472,7 +1762,13 @@ def get_operations_kpis(db: Session):
 
     avg_order_val = (total_sales / delivered_count) if delivered_count > 0 else 0
 
+    rating_row = db.execute(select(func.avg(Order.rating), func.count(Order.rating)).where(Order.rating.is_not(None))).one()
+    avg_rating = round(float(rating_row[0]), 2) if rating_row[0] is not None else None
+    rating_count = int(rating_row[1] or 0)
+
     return {
+        "avg_rating": avg_rating,
+        "rating_count": rating_count,
         "total_orders": total_orders,
         "total_sales": total_sales,
         "active_count": active_count,
@@ -1844,6 +2140,7 @@ async def update_menu_item(
         item.is_popular = payload.is_popular
     if payload.is_available is not None:
         item.is_available = payload.is_available
+        item.sold_out_date = None  # админ формасы — тұрақты күй (стоп-лист авто-тазалауына жатпайды)
     if payload.is_active is not None:
         item.is_active = payload.is_active
 
@@ -2360,6 +2657,104 @@ def admin_reports_page(
             "status_counts": status_counts,
             **kpis,
         },
+    )
+
+
+def _parse_report_date(raw: Optional[str], end: bool = False) -> Optional[datetime]:
+    """YYYY-MM-DD (KZ күні) -> UTC naive datetime (дерекқор UTC-те сақтайды)."""
+    if not raw:
+        return None
+    try:
+        d = datetime.strptime(raw.strip(), "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Дата форматы: ЖЖЖЖ-АА-КК / YYYY-MM-DD")
+    if end:
+        d = d + timedelta(days=1)
+    return (d.replace(tzinfo=KZ_TZ)).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+STATUS_LABELS = {
+    "NEW": "Жаңа / Новый", "ACCEPTED": "Қабылданды / Принят", "PREPARING": "Әзірленуде / Готовится",
+    "READY": "Дайын / Готов", "OUT_FOR_DELIVERY": "Жолда / В доставке",
+    "DELIVERED": "Жеткізілді / Доставлен", "CANCELLED": "Бас тартылды / Отменён",
+}
+
+
+@app.get("/api/admin/reports/export.xlsx")
+def export_reports_xlsx(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    user: User = Depends(require_role([UserRole.ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db),
+):
+    stmt = select(Order).order_by(Order.id)
+    start = _parse_report_date(date_from)
+    end = _parse_report_date(date_to, end=True)
+    if start:
+        stmt = stmt.where(Order.created_at >= start)
+    if end:
+        stmt = stmt.where(Order.created_at < end)
+    orders = db.scalars(stmt).all()
+
+    def kz(dt):
+        local = to_kz(dt)
+        return local.strftime("%d.%m.%Y %H:%M") if local else ""
+
+    order_rows = [["№ тапсырыс", "Күні (KZ)", "Түрі", "Пойыз", "Вагон", "Орын", "Купе", "Жолаушы", "Телефон",
+                   "Күйі", "Тағамдар", "Қосымша ақы 10%", "Жиыны ₸", "Қабылдау→дайын (мин)", "Бағасы (1-5)", "Пікір", "Бас тартты", "Себебі"]]
+    item_rows = [["№ тапсырыс", "Күні (KZ)", "Күйі", "Тағам", "Нұсқа", "Саны", "Бағасы ₸", "Сомасы ₸"]]
+    dish_stats: dict[str, list[float]] = {}
+    delivered_total = 0.0
+    delivered_cnt = cancelled_cnt = 0
+    ratings = []
+    for o in orders:
+        prep = ""
+        if o.accepted_at and o.ready_at:
+            prep = round((o.ready_at - o.accepted_at).total_seconds() / 60.0, 1)
+        order_rows.append([
+            o.order_number, kz(o.created_at), "Алдын ала (ланчбокс)" if o.order_type == "PREORDER" else "Пойызда",
+            o.train_no, o.wagon_no, o.seat_no, o.compartment_no, o.passenger_name, o.phone,
+            STATUS_LABELS.get(o.status.value, o.status.value),
+            "; ".join(f"{i.item_name_snapshot} ×{i.quantity}" for i in o.items),
+            float(o.service_charge), float(o.total), prep, o.rating, o.rating_comment or "",
+            {"passenger": "Жолаушы", "kitchen": "Аспаз/админ"}.get(o.cancelled_by, ""), o.cancel_reason or "",
+        ])
+        for i in o.items:
+            item_rows.append([o.order_number, kz(o.created_at), STATUS_LABELS.get(o.status.value, o.status.value),
+                              i.item_name_snapshot, i.variant_snapshot, i.quantity, float(i.price_snapshot), float(i.line_total)])
+            if o.status == OrderStatus.DELIVERED:
+                st = dish_stats.setdefault(i.item_name_snapshot, [0, 0.0])
+                st[0] += i.quantity
+                st[1] += float(i.line_total)
+        if o.status == OrderStatus.DELIVERED:
+            delivered_total += float(o.total)
+            delivered_cnt += 1
+        elif o.status == OrderStatus.CANCELLED:
+            cancelled_cnt += 1
+        if o.rating is not None:
+            ratings.append(o.rating)
+
+    dish_rows = [["Тағам", "Сатылған саны (жеткізілген)", "Сомасы ₸"]] + [
+        [name, int(v[0]), round(v[1], 2)] for name, v in sorted(dish_stats.items(), key=lambda kv: -kv[1][0])
+    ]
+    period = f"{date_from or 'басынан'} — {date_to or 'бүгінге дейін'}"
+    summary_rows = [
+        ["Көрсеткіш", "Мәні"],
+        ["Кезең", period],
+        ["Барлық тапсырыс", len(orders)],
+        ["Жеткізілген", delivered_cnt],
+        ["Бас тартылған", cancelled_cnt],
+        ["Түсім (жеткізілген, 10% қоса) ₸", round(delivered_total, 2)],
+        ["Орташа чек ₸", round(delivered_total / delivered_cnt, 2) if delivered_cnt else 0],
+        ["Орташа баға (1-5)", round(sum(ratings) / len(ratings), 2) if ratings else "—"],
+        ["Баға қойғандар саны", len(ratings)],
+    ]
+    data = build_xlsx([("Қорытынды", summary_rows), ("Тапсырыстар", order_rows), ("Позициялар", item_rows), ("Тағамдар рейтингі", dish_rows)])
+    fname = f"dar_res_report_{datetime.now(KZ_TZ).strftime('%Y%m%d_%H%M')}.xlsx"
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 
 

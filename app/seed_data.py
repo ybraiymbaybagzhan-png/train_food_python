@@ -95,6 +95,14 @@ def ensure_schema_columns():
         "orders": [
             ("order_type", "VARCHAR(16) DEFAULT 'ONBOARD'"),
             ("departure_at", "DATETIME"),
+            ("ready_eta_at", "DATETIME"),
+            ("rating", "INTEGER"),
+            ("rating_comment", "VARCHAR(500) DEFAULT ''"),
+            ("rated_at", "DATETIME"),
+            ("cancelled_by", "VARCHAR(16) DEFAULT ''"),
+        ],
+        "menu_items": [
+            ("sold_out_date", "DATE"),
         ],
     }
     insp = inspect(engine)

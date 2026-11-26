@@ -9,6 +9,23 @@
 .wa-order-box span{color:#3d5a47;font-size:.88rem;line-height:1.4;}
 .wa-order-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:10px;background:#25D366;color:#fff !important;font-weight:700;text-decoration:none;white-space:nowrap;}
 .wa-order-btn:hover{background:#1ebe5b;}
+.eta-box{display:flex;align-items:center;gap:12px;margin:14px 0;padding:14px 18px;border-radius:12px;background:#fff6e0;border:1px solid #f0c36a;color:#7a5200;}
+.eta-box .eta-big{font-size:1.6rem;font-weight:800;line-height:1;}
+.eta-box small{display:block;opacity:.85;}
+.act-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+.btn-danger-outline{padding:12px 18px;border-radius:10px;border:1.5px solid #c0392b;background:#fff;color:#c0392b;font-weight:700;cursor:pointer;}
+.btn-danger-outline:hover{background:#fdecea;}
+.btn-danger-outline:disabled{opacity:.5;cursor:default;}
+.rate-box{margin-top:18px;padding:18px;border-radius:12px;background:#f4f7fb;border:1px solid #d5deea;text-align:center;}
+.rate-stars{display:flex;justify-content:center;gap:6px;margin:10px 0;}
+.rate-stars button{background:none;border:0;font-size:2.2rem;line-height:1;cursor:pointer;color:#c9ced6;padding:2px;}
+.rate-stars button.on{color:#f5a623;}
+.rate-box textarea{width:100%;min-height:60px;border:1px solid #cfd6df;border-radius:8px;padding:8px;font:inherit;margin-bottom:10px;}
+.related-box{margin-top:18px;padding:16px;border-radius:12px;background:#f7f7f5;border:1px solid #e3e3df;}
+.related-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #ececE8;}
+.related-row:last-child{border-bottom:0;}
+.related-row a{font-weight:700;text-decoration:none;color:inherit;}
+.related-total{margin-top:10px;font-weight:700;text-align:right;}
 </style>
 {% endblock %}
 
@@ -71,6 +88,11 @@
                         Себебі: {{ order.cancel_reason or 'Тапсырыс тоқтатылды' }}
                     {% endif %}
                 </p>
+            </div>
+
+            <div class="eta-box" id="etaBox" style="display:none;">
+                <div class="eta-big" id="etaBig">—</div>
+                <div><strong id="etaLabel">Дайын болуына / Будет готов через</strong><small id="etaSub"></small></div>
             </div>
 
             {% if whatsapp_url and order.status.value != 'CANCELLED' %}
@@ -197,6 +219,37 @@
             </div>
             {% endif %}
 
+            {% if related %}
+            <div class="related-box" id="relatedBox">
+                <h3 class="breakdown-heading" style="margin-top:0;">Сіздің басқа тапсырыстарыңыз / Ваши другие заказы</h3>
+                {% for r in related %}
+                <div class="related-row">
+                    <a href="/order/{{ r.public_uuid }}">#{{ r.order_number }}</a>
+                    <span class="order-status-badge status-{{ r.status.value.lower() }}">{{ r.status.value }}</span>
+                    <strong>{{ "%.0f"|format(r.total) }} ₸</strong>
+                </div>
+                {% endfor %}
+                <div class="related-total">Барлығы / Всего ({{ related|length + 1 }}): {{ "%.0f"|format(related_total) }} ₸</div>
+            </div>
+            {% endif %}
+
+            <div class="rate-box" id="rateBox" style="display:none;">
+                {% if order.rating %}
+                <strong>Бағаңыз үшін рахмет! / Спасибо за оценку!</strong>
+                <div class="rate-stars" aria-label="rating">{% for n in range(1,6) %}<button type="button" class="{{ 'on' if n <= order.rating else '' }}" disabled>★</button>{% endfor %}</div>
+                {% else %}
+                <strong>Тапсырысты бағалаңыз / Оцените заказ</strong>
+                <div class="rate-stars" id="rateStars">{% for n in range(1,6) %}<button type="button" data-v="{{ n }}" aria-label="{{ n }}">★</button>{% endfor %}</div>
+                <textarea id="rateComment" maxlength="500" placeholder="Пікір (міндетті емес) / Комментарий (необязательно)"></textarea>
+                <button type="button" class="btn-primary" id="rateSubmit" disabled>Жіберу / Отправить</button>
+                {% endif %}
+            </div>
+
+            <div class="act-row">
+                <button type="button" class="btn-danger-outline" id="cancelBtn" style="display:none;">Тапсырыстан бас тарту / Отменить заказ</button>
+                <button type="button" class="btn-secondary" id="reorderBtn" style="display:none;">🔁 Қайта тапсыру / Заказать снова</button>
+            </div>
+
             <div class="tracking-footer-actions">
                 <a href="/" class="btn-primary" style="width: 100%; text-align: center;">
                     Жаңа тапсырыс жасау / Заказать еще
@@ -262,7 +315,124 @@ const SUBTEXT_MAP = {
     'CANCELLED': 'Тапсырыс тоқтатылды.'
 };
 
+let CURRENT_STATUS = {{ order.status.value | tojson }};
+let ETA_ISO = {{ (eta_iso or '') | tojson }};
+const HAS_RATING = {{ (order.rating is not none) | tojson }};
+const RATE_KEY = 'dar_res_rated_' + PUBLIC_UUID;
+
+function tr(kz, ru) { return kz + ' / ' + ru; }
+
+function renderEta() {
+    const box = document.getElementById('etaBox');
+    const active = ['NEW', 'ACCEPTED', 'PREPARING'].includes(CURRENT_STATUS);
+    if (!box || !ETA_ISO || !active) { if (box) box.style.display = 'none'; return; }
+    const mins = Math.ceil((new Date(ETA_ISO).getTime() - Date.now()) / 60000);
+    box.style.display = 'flex';
+    const big = document.getElementById('etaBig');
+    const sub = document.getElementById('etaSub');
+    if (mins > 0) {
+        big.textContent = mins + ' мин';
+        sub.textContent = tr('шамамен ' + mins + ' минуттан кейін', 'примерно через ' + mins + ' минут');
+    } else {
+        big.textContent = '≈ 0';
+        sub.textContent = tr('жақын арада дайын болады', 'скоро будет готов');
+    }
+}
+
+function updateActions() {
+    const cancelBtn = document.getElementById('cancelBtn');
+    const reorderBtn = document.getElementById('reorderBtn');
+    const rateBox = document.getElementById('rateBox');
+    if (cancelBtn) cancelBtn.style.display = ['NEW', 'ACCEPTED'].includes(CURRENT_STATUS) ? 'inline-block' : 'none';
+    if (reorderBtn) reorderBtn.style.display = ['DELIVERED', 'CANCELLED'].includes(CURRENT_STATUS) ? 'inline-block' : 'none';
+    let rated = HAS_RATING;
+    try { rated = rated || !!localStorage.getItem(RATE_KEY); } catch (e) {}
+    if (rateBox) rateBox.style.display = (CURRENT_STATUS === 'DELIVERED' && (!rated || HAS_RATING)) ? 'block' : 'none';
+}
+
+async function cancelOrder() {
+    const tail = prompt(tr('Бас тарту үшін тапсырыс берген телефонның соңғы 4 санын енгізіңіз', 'Для отмены введите последние 4 цифры телефона, указанного в заказе'));
+    if (tail === null) return;
+    const btn = document.getElementById('cancelBtn');
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/orders/' + encodeURIComponent(PUBLIC_UUID) + '/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone_tail: tail.trim() })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            CURRENT_STATUS = 'CANCELLED';
+            ETA_ISO = '';
+            updateTimelineUI('CANCELLED', 'Отменено пассажиром / Жолаушы бас тартты');
+            showToast(tr('Тапсырыс болдырылмады', 'Заказ отменён'));
+        } else {
+            showToast(data.detail || 'Error');
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showToast(tr('Желі қатесі', 'Нет соединения. Попробуйте ещё раз'));
+        btn.disabled = false;
+    }
+}
+
+async function reorder() {
+    try {
+        const res = await fetch('/api/orders/' + encodeURIComponent(PUBLIC_UUID) + '/reorder');
+        const data = await res.json();
+        if (!res.ok) { showToast(data.detail || 'Error'); return; }
+        if (!data.lines.length) {
+            showToast(tr('Бұл тағамдар қазір қолжетімсіз', 'Эти блюда сейчас недоступны'));
+            return;
+        }
+        localStorage.setItem('dar_res_cart', JSON.stringify(data.lines));
+        if (data.skipped.length) {
+            try { sessionStorage.setItem('dar_res_reorder_skipped', JSON.stringify(data.skipped)); } catch (e) {}
+        }
+        window.location.href = '/menu?cart=1';
+    } catch (e) {
+        showToast(tr('Желі қатесі', 'Нет соединения'));
+    }
+}
+
+let RATE_VALUE = 0;
+function setupRating() {
+    const stars = document.getElementById('rateStars');
+    const submit = document.getElementById('rateSubmit');
+    if (!stars || !submit) return;
+    stars.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        RATE_VALUE = parseInt(b.dataset.v, 10);
+        stars.querySelectorAll('button').forEach(x => x.classList.toggle('on', parseInt(x.dataset.v, 10) <= RATE_VALUE));
+        submit.disabled = false;
+    }));
+    submit.addEventListener('click', async () => {
+        submit.disabled = true;
+        try {
+            const res = await fetch('/api/orders/' + encodeURIComponent(PUBLIC_UUID) + '/rating', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rating: RATE_VALUE, comment: document.getElementById('rateComment').value })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                try { localStorage.setItem(RATE_KEY, '1'); } catch (e) {}
+                document.getElementById('rateBox').innerHTML = '<strong>' + tr('Бағаңыз үшін рахмет!', 'Спасибо за оценку!') + '</strong>';
+            } else {
+                showToast(data.detail || 'Error');
+                submit.disabled = false;
+            }
+        } catch (e) {
+            showToast(tr('Желі қатесі', 'Нет соединения'));
+            submit.disabled = false;
+        }
+    });
+}
+
 function updateTimelineUI(status, cancelReason) {
+    CURRENT_STATUS = status;
+    updateActions();
+    renderEta();
     const step = STEP_MAP[status] || 1;
     document.getElementById('orderStatusBadge').textContent = status;
     document.getElementById('orderStatusBadge').className = `order-status-badge status-${status.toLowerCase()}`;
@@ -304,6 +474,7 @@ function connectTrackingWS() {
         try {
             const msg = JSON.parse(e.data);
             if (msg.event === 'order_status_update' && (msg.data.public_uuid === PUBLIC_UUID || msg.data.order_number === PUBLIC_UUID)) {
+                ETA_ISO = msg.data.ready_eta_at || '';
                 updateTimelineUI(msg.data.new_status, msg.data.cancel_reason);
             }
         } catch (err) {}
@@ -325,6 +496,12 @@ function showToast(msg) {
 
 document.addEventListener('DOMContentLoaded', () => {
     connectTrackingWS();
+    document.getElementById('cancelBtn').addEventListener('click', cancelOrder);
+    document.getElementById('reorderBtn').addEventListener('click', reorder);
+    setupRating();
+    updateActions();
+    renderEta();
+    setInterval(renderEta, 20000);
 });
 </script>
 {% endblock %}

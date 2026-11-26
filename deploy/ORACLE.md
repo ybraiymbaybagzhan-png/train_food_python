@@ -9,8 +9,8 @@
 
 ## 2. Сервер құру
 1. Menu -> Compute -> Instances -> Create instance.
-2. Image: **Canonical Ubuntu 22.04**.
-3. Shape: **VM.Standard.E2.1.Micro** (Always Free-eligible белгісі бар).
+2. Image: **Canonical Ubuntu 24.04** (ARM/aarch64 нұсқасы, A1 үшін).
+3. Shape: Change shape -> Ampere -> **VM.Standard.A1.Flex**, **2 OCPU, 12 ГБ RAM** (Always Free-eligible). «Out of capacity» шықса, кейінірек қайталаңыз немесе E2.1.Micro алыңыз.
 4. Networking: Public IPv4 address қосулы тұрсын.
 5. SSH keys: **Save private key** басып, файлды сақтаңыз (қайта жүктелмейді).
 6. Create. Дайын болған соң **Public IP** көшіріп алыңыз.

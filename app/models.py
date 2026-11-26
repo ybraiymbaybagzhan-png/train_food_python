@@ -1,8 +1,8 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -114,6 +114,8 @@ class MenuItem(Base):
     price: Mapped[float] = mapped_column(Numeric(12, 2))
     image_url: Mapped[str] = mapped_column(String(500), default="")
     is_available: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Стоп-лист: тағам қай күні таусылды деп белгіленді (келесі күні автоматты қайта қосылады)
+    sold_out_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_popular: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -167,6 +169,12 @@ class Order(Base):
     # ONBOARD — пойыздағы тапсырыс; PREORDER — ланчбокс алдын ала тапсырысы (билетпен бірге, ≥24 сағат бұрын)
     order_type: Mapped[str] = mapped_column(String(16), default="ONBOARD", index=True)
     departure_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Дайын болу уақыты (аспаз белгілейді), жолаушы бағасы, кім бас тартты
+    ready_eta_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    rating_comment: Mapped[str] = mapped_column(String(500), default="")
+    rated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cancelled_by: Mapped[str] = mapped_column(String(16), default="")
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(128), unique=True, index=True, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
